@@ -9,6 +9,7 @@
 - 審查 Issue → 讀 02-agent-issue-review.md
 - 實作 → 讀 03-implement-agent.md
 - Code Review → 讀 04-agent-code-review.md
+- 研究（研究型 Issue）→ 讀 05-research-agent.md
 
 判斷大小一律看 _size-guide.md；交棒前一定要在 Issue 的「留言板」留一筆，
 格式看_issue-log.md。
