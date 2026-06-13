@@ -82,3 +82,8 @@
   3. 驗收條件改成可打勾：移除「一定要產出 URL」的硬性條件，改為「部署達成 A 或 B 其中一項」，並補上 `pnpm build` 成功一條。
 - 範圍與大小不變，仍為「中」（純設定檔與骨架）。
 - 下一步：交回 Agent Issue Review。
+
+### 2026-06-13 15:06 ｜ Agent Issue Review
+- 輸出：Review Suggestion：無需修改。
+- 理由：Issue 目標清楚，已定案使用 Cloudflare Workers static assets + Vite + React + TypeScript + pnpm，Implement Agent 不需再做 Pages/Workers 二選一；範圍只含專案骨架、最小首頁、部署設定與基本品質檢查，不含資料來源、價格表、比較功能、CI/CD 或自訂網域，大小屬中且可一次實作；驗收條件可打勾，並已補上 Cloudflare 帳號/權限等外部前置條件，以及無法登入時的部署就緒 fallback，避免實作卡在非程式碼問題。
+- 下一步：交給 Implement Agent。
