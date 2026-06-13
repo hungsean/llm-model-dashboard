@@ -13,3 +13,9 @@
 
 判斷大小一律看 _size-guide.md；交棒前一定要在 Issue 的「留言板」留一筆，
 格式看_issue-log.md。
+
+## github規範
+
+- issue
+  - title 請使用 issue 的全英文檔案名稱
+  - 若出現本地與github號碼對不齊，已修改本地號碼為主

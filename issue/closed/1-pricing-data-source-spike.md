@@ -51,7 +51,7 @@
 
 ### 2026-06-12 17:25 ｜ Planning Agent
 - 輸出：建立 Issue #1「價格資料來源調研與決策」。這是整個想法的第一棒、其餘 Issue 的前置依賴。範圍只含調研＋下決策＋定 schema，明確不寫抓取程式、不接 API、不做畫面。產物是 `docs/data-source-decision.md`。
-- 相依：#3、#4 依賴本張的 schema 結論；#2 可與本張並行。
+- 相依：#4、#5 依賴本張的 schema 結論；#3 可與本張並行。（編號註：原為 #2/#3/#4，因 GitHub issue/PR 共用編號、#2 被 PR 佔用，整體 +1 對齊 GitHub）
 - 大小估「中」，可交給 Agent Issue Review。
 
 ### 2026-06-13 ｜ Research Agent（依主人回覆補做）

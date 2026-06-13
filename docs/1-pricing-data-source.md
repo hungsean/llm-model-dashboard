@@ -1,6 +1,6 @@
 # 研究報告 #1：LLM 價格資料來源與存放策略
 
-> 對應 Issue：[#1 pricing-data-source-spike](../issue/1-pricing-data-source-spike.md)
+> 對應 Issue：[#1 pricing-data-source-spike](../issue/closed/1-pricing-data-source-spike.md)
 > 角色：Research Agent ｜ 日期：2026-06-12
 > 交付物：本報告即為交付物（研究型 Issue，不接著寫程式）
 
