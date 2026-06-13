@@ -83,3 +83,12 @@
   - 另：`/api/pricing` 回傳契約的定案放在 #8——`{ fetchedAt, models: ModelPricing[] }`，`fetchedAt` 採 response metadata 單一時間戳、欄位全 camelCase 對齊 §4.2。
 - 大小由「中（偏大）」降為「**中**」（單一目標）。
 - 下一步：#7 交回 Agent Issue Review；同步建立 #8、改 #4 相依為 #8。
+
+### 2026-06-13 15:54 ｜ Agent Issue Review
+- 輸出：Review Suggestion：無需修改。
+- 理由：
+  - Issue 已依前次 Review 收斂為「價格資料攝取層」單一目標，`GET /api/pricing` 讀取端點已拆到 #8，整體鏈路 #7 → #8 → #4 清楚。
+  - 範圍邊界清楚：#7 做 D1 建庫/binding/migration、Worker `scheduled()`、Cron 攝取、`current` UPSERT、`history` diff、容錯與本地手動觸發；明確不做 production HTTP 寫入/觸發端點、不做讀取 API、不做前端。
+  - D1 database 建立與手動觸發的交付邊界已補明：實作時用 `wrangler d1 create`、填入 `database_id`、套 migration，並把 database 名稱/id 留在留言板；手動觸發限 dev，避免非預期寫入 API。
+  - 驗收條件可判斷，涵蓋 migration、Cron 設定、成功寫入、history diff、抓取失敗不清空資料、provider 設定陣列與 production 不開寫入端點。
+- 下一步：交給 Implement Agent。
