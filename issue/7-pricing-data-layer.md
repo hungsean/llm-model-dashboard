@@ -92,3 +92,39 @@
   - D1 database 建立與手動觸發的交付邊界已補明：實作時用 `wrangler d1 create`、填入 `database_id`、套 migration，並把 database 名稱/id 留在留言板；手動觸發限 dev，避免非預期寫入 API。
   - 驗收條件可判斷，涵蓋 migration、Cron 設定、成功寫入、history diff、抓取失敗不清空資料、provider 設定陣列與 production 不開寫入端點。
 - 下一步：交給 Implement Agent。
+
+### 2026-06-13 ｜ Implement Agent
+- 輸出：Implement，完成價格資料攝取層並在本地全程驗證通過。
+
+**改了什麼（主要改動點）**
+1. **D1 建庫**：`wrangler d1 create llm-model-dashboard-pricing`（region APAC）。**database_id：`91547166-7b5e-44de-9522-b7782304100d`**、name：`llm-model-dashboard-pricing`。
+2. **migration**：`migrations/0001_init.sql`，建 `model_pricing_current`、`model_pricing_history`（欄位/主鍵完全照 §4.5）。
+3. **wrangler.jsonc**：加 `main`（Worker 入口）、`assets.binding=ASSETS`（保留 SPA not_found_handling）、`triggers.crons=["0 6 * * *"]`（每日 06:00 UTC）、`d1_databases`（binding `DB`）。
+4. **Worker 程式（`src/worker/`）**：
+   - `index.ts`：`fetch` 一律轉 `env.ASSETS.fetch`（#7 還沒有 /api，#8 再加）；`scheduled` 用 `ctx.waitUntil(ingestPricing(env))`。
+   - `config.ts`：`TRACKED_PROVIDERS = ['anthropic','openai','google']`（加 Grok 只改這一行）＋ 來源 URL。
+   - `models-dev.ts`：抓 api.json（非 2xx 丟錯）＋ 過濾三家 ＋ 轉 §4.2 schema（缺值 `null`）。
+   - `ingest.ts`：讀 `history` 開放區間建索引 → 對每個模型 UPSERT `current` ＋ history diff，最後一次 `DB.batch()`；抓取/解析失敗或過濾後 0 筆則早退、不動 DB、記 log。
+   - `types.ts`：`PricingRecord` 與 models.dev 最小型別。
+5. **型別/設定**：`tsconfig.worker.json`（Worker 專用、無 DOM、含 `worker-configuration.d.ts`）＋ 根 tsconfig 加 reference ＋ `tsconfig.app.json` 排除 `src/worker`；`worker-configuration.d.ts`（`wrangler types` 產生，已提交，讓乾淨環境 typecheck/build 可過）；`eslint.config.js` 忽略產生檔。
+
+**怎麼對應驗收條件**（全部 ✅，本地）
+- D1 建庫＋id 填入 binding＋記留言板：✅（見上）。
+- wrangler 有 D1 binding 與 crons、Worker 掛 `scheduled()`、首頁仍服務：✅（`curl /` → HTTP 200、`<title>LLM API 價格 Dashboard</title>`）。
+- migration apply 成功、兩表符合 §4.5：✅（`wrangler d1 migrations apply --local`，3 commands ok）。
+- 抓取/過濾/轉換/UPSERT、本地手動觸發：✅ 觸發一次寫入 **97 筆**（anthropic 25＋openai 50＋google 22，與 §4.4 實抓數一致）。
+- history diff：✅ 同日再跑無變動 → 不新增（97/97）；**跨日變價** → 關舊區間（to_date=今天）＋開新區間（98/97）；**同日再變價** → 就地覆蓋、不撞主鍵（修了一個 PK 衝突 bug，見風險）。
+- 容錯：✅ 把來源指到 404 觸發 → `current` 維持 97 筆不清空，並記 `[ingest] ... failed, keeping existing data` log。
+- production 未新增 HTTP 寫入/觸發端點：✅（`fetch` 只讀 ASSETS；攝取只走 `scheduled`）。
+- provider 設定陣列、加 Grok 一行：✅（`config.ts`）。
+
+**怎麼驗證**：`pnpm typecheck`、`pnpm lint`、`pnpm build` 全 exit 0；`wrangler dev` ＋ `curl /cdn-cgi/handler/scheduled` 觸發 `scheduled()`，用 `wrangler d1 execute --local` 查表驗證上述每條。
+
+**風險／取捨**
+1. **PK 衝突修正（同日多次變價）**：§4.5 精簡邏輯「關舊列＋插 from_date=今天 新列」在「開放區間就是今天才開的」時會撞主鍵（PK 含 from_date）。測試時實際觸發了 `SQLITE_CONSTRAINT_PRIMARYKEY` 500。已改為：同日變價 → **就地覆蓋今天這段**；只有 from_date 早於今天才關舊開新。歷史粒度因此是「天」（一天最多一段、記當天最後價格），對天/週級的價格變動足夠。
+2. **本地觸發路徑**：`wrangler dev --test-scheduled` 的 `/__scheduled` 會被我們的 `fetch` 攔成靜態資產；實際要用 Miniflare 的 **`/cdn-cgi/handler/scheduled`** 才會跑 `scheduled()`。已記於此供 #8/驗收參考。
+3. **尚未上 production**：本張只做到「本地 D1 有資料、全綠」。要正式啟用 Cron，需 `wrangler d1 migrations apply --remote` ＋ `pnpm run deploy`（會讓線上 Worker 多一個每日 cron 打 models.dev）——屬對外/改動 production 的動作，**留待主人確認後再執行**，未自行部署。
+4. **`worker-configuration.d.ts` 已提交**（非 gitignore）：換取乾淨環境免先手動 `cf-typegen` 即可 typecheck/build；改 `wrangler.jsonc` binding 後需 `pnpm cf-typegen` 重新產生。
+
+- 下一步：交給 Agent Code Review。
+
