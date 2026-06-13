@@ -1,0 +1,11 @@
+node_modules
+dist
+.wrangler
+pnpm-lock.yaml
+
+# Repo docs / workflow files are managed outside this app
+AGENTS.md
+CLAUDE.md
+docs
+issue
+.workflow-rules

@@ -1,0 +1,15 @@
+.app {
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+.app h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.app p {
+  margin: 0;
+  opacity: 0.8;
+}

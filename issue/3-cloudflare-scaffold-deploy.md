@@ -16,6 +16,7 @@
 ## 範圍
 
 **要做：**
+
 - 用 pnpm 建立 Vite + React + TypeScript 專案，整合 `@cloudflare/vite-plugin`。
 - 設定 Cloudflare Workers 部署（`wrangler.jsonc`，static assets 設定），`pnpm dev` 能本地跑起來。
 - 放一個最小首頁（標題 + 一句話說明這是 LLM API 價格 dashboard）。
@@ -24,6 +25,7 @@
 - 在本 Issue 留言板記下實際部署指令（如 `pnpm run deploy` 或 `wrangler deploy`），以及部署所需的外部前置條件。
 
 **不做：**
+
 - 不接任何資料來源、不做價格表、不做比較功能。
 - 不做 CI/CD pipeline（之後要再開 Issue）。
 - 不處理自訂網域。
@@ -31,12 +33,14 @@
 ## 部署前置條件與 fallback
 
 部署到線上需要這些**外部條件**（不是程式碼能解決的）：
+
 - 已有 Cloudflare 帳號，且本機已 `wrangler login`（或設好 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`）。
 - 該帳號有建立 / 部署 Worker 專案的權限。
 
 **情況 A — 環境具備上述條件**：完成部署，產出一個可訪問的 URL，URL 記到留言板。
 
 **情況 B — 環境無法登入 / 無權限**：不卡住、不視為失敗。改為交付「部署就緒」狀態：
+
 - 部署設定（`wrangler.jsonc` 等）完成且正確。
 - 本地 `pnpm dev`、build、type check、`pnpm lint` 全部通過。
 - 在留言板寫明：實際部署指令、目前缺少的外部條件（例如未登入 / 無 token），供主人之後手動補上即可上線。
@@ -64,11 +68,13 @@
 ## 留言板
 
 ### 2026-06-12 17:25 ｜ Planning Agent
+
 - 輸出：建立 Issue #3「Cloudflare Pages/Workers 專案骨架與部署」。範圍只含可跑可部署的最小骨架＋一個首頁，明確不接資料、不做功能、不做 CI/CD。
 - 相依：可與 #1 並行；為 #4、#5 的前置。
 - 大小估「中」，可交給 Agent Issue Review。
 
 ### 2026-06-13 15:01 ｜ Agent Issue Review
+
 - 輸出：Review Suggestion：需要修改。
 - 問題：Issue 目標與範圍大致清楚，大小也適中；但「能透過 wrangler / Pages 成功部署，產出一個可訪問的 URL」把外部 Cloudflare 帳號、wrangler 登入狀態、專案名稱／建立權限視為已具備，Issue 沒有說明前置條件或缺少權限時如何驗收。
 - 影響：Implement Agent 可能已完成骨架與部署設定，卻因沒有 Cloudflare 憑證或專案權限無法產出 URL，導致卡在不可由程式碼修改解決的狀態；也可能為了通過驗收臨時選錯 Pages/Workers 路線或留下未說明的手動步驟。
@@ -76,6 +82,7 @@
 - 下一步：回到 Planning Agent。
 
 ### 2026-06-13 16:30 ｜ Planning Agent
+
 - 輸出：依 Review 建議改寫 Issue #3。
   1. 技術選型定案（不再二選一）：**Cloudflare Workers（static assets）＋ Vite + React + TypeScript ＋ pnpm，搭 `@cloudflare/vite-plugin`**；附選擇理由（Pages 已維護模式、Workers 為未來加 API/KV/D1 的順路）。經主人確認採用。
   2. 新增「部署前置條件與 fallback」段：明列外部條件（Cloudflare 帳號、`wrangler login` 或 API token、建立/部署權限），並定義情況 A（能部署→產 URL 記留言板）與情況 B（無法登入/無權限→交付「部署就緒」：設定完成＋本地 dev/build/type/lint 全過＋留言板寫明部署指令與缺少條件）。
@@ -84,6 +91,44 @@
 - 下一步：交回 Agent Issue Review。
 
 ### 2026-06-13 15:06 ｜ Agent Issue Review
+
 - 輸出：Review Suggestion：無需修改。
 - 理由：Issue 目標清楚，已定案使用 Cloudflare Workers static assets + Vite + React + TypeScript + pnpm，Implement Agent 不需再做 Pages/Workers 二選一；範圍只含專案骨架、最小首頁、部署設定與基本品質檢查，不含資料來源、價格表、比較功能、CI/CD 或自訂網域，大小屬中且可一次實作；驗收條件可打勾，並已補上 Cloudflare 帳號/權限等外部前置條件，以及無法登入時的部署就緒 fallback，避免實作卡在非程式碼問題。
 - 下一步：交給 Implement Agent。
+
+### 2026-06-13 ｜ Implement Agent
+
+- 輸出：Implement，完成 Cloudflare Workers 骨架並成功部署（達成情況 A）。
+
+**改了什麼（主要改動點）**
+
+1. 專案初始化：新增 `package.json`（pnpm，scripts：`dev` / `build` / `preview` / `deploy` / `lint` / `format` / `typecheck` / `cf-typegen`），安裝 Vite 8 + React 19 + TypeScript 6 + `@cloudflare/vite-plugin` + `wrangler`。
+2. 建置設定：`vite.config.ts`（`react()` + `cloudflare()` plugin）；`tsconfig.json` + `tsconfig.app.json` + `tsconfig.node.json`（project references，strict 模式）。
+3. Cloudflare 部署設定：`wrangler.jsonc`，static assets 模式、`not_found_handling: single-page-application`（SPA 路由）。
+4. 最小首頁：`index.html` + `src/main.tsx` + `src/App.tsx` + `src/index.css` + `src/App.css`，顯示標題「LLM API 價格 Dashboard」與一句說明。
+5. 品質工具：`eslint.config.js`（flat config，js + typescript-eslint + react-hooks + react-refresh）、`.prettierrc.json`。
+6. `.gitignore`：補上 `node_modules`、`dist`、`.wrangler`、`.dev.vars`、log 等。
+
+**怎麼對應驗收條件**
+
+- `pnpm install && pnpm dev` 本地啟動、看得到首頁：✅（dev server `http://localhost:5173/`，curl 取到 `<title>LLM API 價格 Dashboard</title>`）。
+- 首頁顯示標題與一句說明：✅（`src/App.tsx`）。
+- `.gitignore` 涵蓋 node_modules / build 產物 / `.wrangler`：✅。
+- TypeScript / lint 通過：✅（`pnpm typecheck`、`pnpm lint` 皆 exit 0）。
+- `pnpm build` 成功：✅（`tsc -b && vite build` 產出 `dist/`）。
+- 部署 A 或 B：✅ **達成 A**——成功部署到 Cloudflare Workers，可訪問 URL（HTTP 200）：
+  **https://llm-model-dashboard.hungsean0419.workers.dev**
+
+**部署指令與前置條件（供日後參考）**
+
+- 部署指令：`pnpm run deploy`（= `pnpm build && wrangler deploy`），或先 `pnpm build` 再 `npx wrangler deploy`。
+- 外部前置條件：Cloudflare 帳號已 `wrangler login`（本機目前已登入 `hungsean0419@gmail.com`，Account ID `ef5ef57b22bccb04a8cfea348ad84232`），且帳號具 Workers 部署權限。CI 環境改用 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`。
+
+**風險／取捨**
+
+- ESLint：初次安裝解析到 v10，與 `eslint-plugin-react-hooks` 7.x 的 flat config 不相容（plugins 仍是陣列格式），已將 ESLint 釘在 `^9`（Vite React 模板的標準版本）解決；另 react-hooks 的 flat config 要用 `configs.flat["recommended-latest"]` 而非 `configs["recommended-latest"]`。
+- Worker 名稱用預設 `llm-model-dashboard`，部署在 `*.workers.dev` 子網域；自訂網域不在本 Issue 範圍。
+
+**怎麼驗證**：`pnpm typecheck`、`pnpm lint`、`pnpm build` 全 exit 0；本地 `pnpm dev` 與線上 URL 皆 curl 到正確標題、HTTP 200。
+
+- 下一步：交給 Agent Code Review。
