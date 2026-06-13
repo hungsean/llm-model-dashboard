@@ -1,4 +1,4 @@
-# Issue #2：Cloudflare Pages/Workers 專案骨架與部署
+# Issue #3：Cloudflare Pages/Workers 專案骨架與部署
 
 ## 背景／為什麼
 
@@ -33,11 +33,11 @@
 ## 相依關係
 
 - 可與 #1 **並行**，不互相阻塞。
-- 是 #3、#4 的前置（功能要長在這個骨架上）。
+- 是 #4、#5 的前置（功能要長在這個骨架上）。
 
 ## 留言板
 
 ### 2026-06-12 17:25 ｜ Planning Agent
-- 輸出：建立 Issue #2「Cloudflare Pages/Workers 專案骨架與部署」。範圍只含可跑可部署的最小骨架＋一個首頁，明確不接資料、不做功能、不做 CI/CD。
-- 相依：可與 #1 並行；為 #3、#4 的前置。
+- 輸出：建立 Issue #3「Cloudflare Pages/Workers 專案骨架與部署」。範圍只含可跑可部署的最小骨架＋一個首頁，明確不接資料、不做功能、不做 CI/CD。
+- 相依：可與 #1 並行；為 #4、#5 的前置。
 - 大小估「中」，可交給 Agent Issue Review。
