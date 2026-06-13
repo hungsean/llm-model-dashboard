@@ -132,3 +132,28 @@
 **怎麼驗證**：`pnpm typecheck`、`pnpm lint`、`pnpm build` 全 exit 0；本地 `pnpm dev` 與線上 URL 皆 curl 到正確標題、HTTP 200。
 
 - 下一步：交給 Agent Code Review。
+
+### 2026-06-13 15:23 ｜ Agent Code Review
+
+- 輸出：Review Report。
+
+結論：無需修改
+
+看過的改動點：
+- 專案初始化與 scripts：符合 Issue 要求，`dev` / `build` / `deploy` / `lint` / `typecheck` 都有定義，使用 pnpm、Vite + React + TypeScript、`@cloudflare/vite-plugin` 與 Wrangler。
+- Cloudflare Workers 設定：`wrangler.jsonc` 使用 Workers static assets，`not_found_handling: single-page-application` 合理；`pnpm exec wrangler deploy --dry-run` 會被 Vite plugin 轉向 `dist/wrangler.json`，可讀到 build 後 assets。
+- 最小首頁：`src/App.tsx` 顯示「LLM API 價格 Dashboard」與一句價格 dashboard 說明，沒有混入資料來源、價格表或比較功能。
+- `.gitignore` 與品質工具：已涵蓋 `node_modules`、`dist`、`.wrangler`、`.dev.vars` 等；ESLint/TypeScript 設定可用。
+
+驗證：
+- `pnpm typecheck`：通過。
+- `pnpm lint`：通過。
+- `pnpm build`：通過。
+- `pnpm exec wrangler deploy --dry-run`：部署設定通過；沙盒內 Wrangler 寫使用者層級 log 檔被 EPERM 擋住，但 dry-run 本身完成並 exit 0。
+- `pnpm dev --host 127.0.0.1`：沙盒內因 inspector port `9229` listen 權限失敗；升權重跑可啟動，`http://127.0.0.1:5173/` 可取到正確 title。
+- 線上 URL `https://llm-model-dashboard.hungsean0419.workers.dev`：HTTP 200，HTML title 符合。
+
+風險：
+- 沒有需要擋下的風險。唯一注意點是本機沙盒環境會限制 Wrangler log 寫入與 dev server port listen，已確認這不是專案設定問題。
+
+下一步：Review Report 通過，交給人確認；確認後可進入 PR 推送，並提醒人手動把這張 Issue 移到 `/closed` 收尾。
