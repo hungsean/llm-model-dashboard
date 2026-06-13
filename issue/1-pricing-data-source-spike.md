@@ -54,6 +54,14 @@
 - 相依：#3、#4 依賴本張的 schema 結論；#2 可與本張並行。
 - 大小估「中」，可交給 Agent Issue Review。
 
+### 2026-06-13 ｜ Research Agent（依主人回覆補做）
+- 緣由：主人看過研究報告後給兩點回覆，回到 Research Agent 補做。
+- 輸出（更新 `docs/1-pricing-data-source.md`）：
+  1. **存放決策改寫**（§4.3、§4.5）：新需求「不重部署更新 ＋ 自動更新 ＋ 順便存歷史」同時踩中原 §4.3 兩個觸發條件 → 從靜態 JSON 改為 **D1 ＋ 排程 Worker（Cron Trigger）**。給了 `current`/`history` 兩張 D1 表設計與更新邏輯。**誠實提醒**：可商用來源都只有現價、沒有歷史價（有歷史的 simonw 無授權不能用），歷史只能由排程 Worker 從現在往後累積，開抓前的補不回來。
+  2. **供應商範圍縮小**（§4.4）：只抓 Anthropic / OpenAI / Google 三家，Grok（xAI）做成設定接口、預設不抓。已用 `curl models.dev/api.json` 實抓驗證四家 provider key 都在（anthropic 25、openai 50、google 22、xai 8 個模型）。
+- 主來源仍是 models.dev（單一 `api.json` 最適合排程 Worker 拉取）；schema 主體不變。
+- 下一步：交給**人**看過補充是否足夠 → 足夠就收尾、開實作型 Issue（建 D1 ＋ 排程 Worker）；不足留在 Research Agent 續補。
+
 ### 2026-06-12 ｜ Planning Agent（重新規劃）
 - 緣由：工作流新增 Research Agent（`05-research-agent.md`），正式區分實作型／研究型 Issue。本張屬研究型，依新規範重新規劃。
 - 更正前一筆：研究型 Issue **不走 Agent Issue Review**，改為「Planning Agent 寫好 → 人為確認 → 交給 Research Agent」。

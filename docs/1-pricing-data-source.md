@@ -4,6 +4,10 @@
 > 角色：Research Agent ｜ 日期：2026-06-12
 > 交付物：本報告即為交付物（研究型 Issue，不接著寫程式）
 
+> **更新紀錄（2026-06-13，依主人回覆補做）**：
+> 1. 新需求「不重新部署就能更新 ＋ 自動更新 ＋ 順便存歷史」→ 存放方式從靜態 JSON 改為 **D1 ＋ 排程 Worker（Cron Trigger）**，見 §4.3、§4.5。
+> 2. 範圍縮小到只抓 **Anthropic / OpenAI / Google** 三家（Grok＝xAI 選用），見 §4.4。
+
 ---
 
 ## 1. 研究問題
@@ -44,7 +48,7 @@
   - **不利證據**：模型數（1100+）少於 models.dev；維護者明言「價格不會 100% 準確，建議對帳單核對」；官方 API 仍 coming soon。
 - **BerriAI/litellm**：欄位豐富但偏 litellm 內部用途（無 displayName 概念、context 拆成 max_input/output_tokens），單位是每 token 需換算；可作第三方交叉驗證來源。
 - **OpenRouter**：即時、免 auth 好取得，但價格是 **OpenRouter 平台轉售價**，未必等於各家原廠定價；資料受 ToS 約束，不適合當「重新散布」的主來源，較適合即時交叉比對。
-- **simonw/llm-prices**：**無授權檔，法律上不能安心直接採用**，故排除為資料來源；但其「逐 vendor + from_date/to_date 歷史價」結構，是日後若要做歷史價時值得借鏡的設計（缺 context window）。
+- **simonw/llm-prices**：**無授權檔，法律上不能安心直接採用**，故排除為資料來源；但其「逐 vendor + from_date/to_date 歷史價」結構，正是本專案要做歷史價時借鏡的設計（見 §4.5），缺 context window 不影響借鏡。⚠️ 注意：能借鏡的是**結構**，不是它的**歷史資料**——歷史價要靠我們自己從現在累積（見 §4.3）。
 
 ---
 
@@ -94,18 +98,82 @@ interface ModelPricing {
 
 > 若日後改用 per-token 來源（LiteLLM / OpenRouter），匯入時一律 `value × 1_000_000` 換算成 /MTok 再存。
 
-### 4.3 存放方式：**建置期打包成靜態 JSON**（隨 Pages/Worker 部署）
+### 4.3 存放方式：**D1 ＋ 排程 Worker（Cron Trigger）自動更新，並保留歷史**
 
-決策：先用**靜態 JSON**，不用 KV、不用 D1。
+> **決策已更新（2026-06-13）**：主人確認要「不重新部署就能更新 ＋ 自動更新 ＋ 順便存歷史」。這三點正好同時踩中原本此節列的兩個「何時改變決策」觸發條件，因此**從靜態 JSON 改為 D1 ＋ 排程 Worker**。原本的靜態 JSON 在此情境不適用（要更新就得重部署、也存不了時間序列）。
 
-理由：
-- 資料量小（數千筆）、**讀多寫少**、本 Issue 範圍**不存歷史**；靜態 JSON 隨邊緣快取，查詢成本為零、無 runtime binding 複雜度。
-- KV/D1 的價值在「不重新部署就能更新」或「查詢/歷史」，目前都用不到。
-- **不利取捨**：靜態 JSON 要更新就得重新部署、無法即時。可接受，因為價格變動頻率低（天/週級）。
+決策：用 **D1** 當主要資料層，由一支 **Cron Trigger 排程 Worker** 定期（建議每日一次）抓 `models.dev/api.json`、過濾出鎖定的幾家（見 §4.4）、轉成本 schema 寫進 D1；前端 Worker 直接讀 D1。如需更快的邊緣讀取，可再用 **KV／Cache API** 快取「現價」這份小資料。
 
-**何時改變決策**：
-- 要「不重新部署就更新價格」→ 改放 **KV**。
-- 要「存歷史價、做時間序列查詢」→ 改用 **D1**（可借鏡 simonw 的 from_date/to_date 結構）。
+為什麼是 D1 而不是 KV（逐條對需求）：
+- **不重新部署就更新**：D1、KV 都做得到（資料在 runtime store，不綁進 bundle），這點兩者平手。
+- **自動更新**：靠 **Cron Trigger** 排程 Worker 觸發，跟選哪個 store 無關，兩者都行。
+- **歷史／時間序列**：這點決定勝負。歷史價要能回答「某模型一段時間的價格變化」，需要 SQL 的範圍查詢與排序；KV 只能 key-value，存歷史得把快照硬塞成 blob、很難查。**D1（SQLite）原生支援，最契合**，也正好對上 simonw 的 `from_date`/`to_date` 結構（見 §4.5）。
+- **折衷**：KV 仍可當「現價」唯讀快取（前端高頻讀很省），但歷史與主資料一律放 D1。
+
+**重要的誠實提醒（歷史資料從哪來）**：
+- models.dev（及其他可商用來源）只給**現價 ＋ `last_updated`**，**沒有歷史價**。唯一有現成歷史價的是 simonw/llm-prices，但它**無授權、不能用**（見 §3.2）。
+- 所以歷史是**我們自己從現在開始累積**：排程 Worker 每次抓到價格，跟 D1 內該模型最新一筆比對，**有變動才**關掉舊區間（補上 `to_date`）並插入新區間（`from_date` = 當日）。
+- 結論：**開始抓之前的歷史補不回來**，只能往後累積。可接受——價格變動頻率低（天/週級），累積幾週後就有可用的時間序列。
+
+**成本與限制（要記得）**：
+- Cron Trigger 與 D1 都在 Cloudflare 免費額度內可跑這種小資料量（單來源、單一 JSON、數十～數百筆模型）。
+- 排程 Worker 要對 `models.dev/api.json` 取得失敗有容錯：抓不到就**保留 D1 既有資料、不要覆蓋成空**，並記一筆 log。
+
+### 4.4 鎖定的供應商範圍
+
+主人定案：目前**只抓三家**，Grok 選用。匯入時用 models.dev 的 provider key 過濾：
+
+| 供應商 | 口語名 | models.dev provider key | 是否納入 | 現有模型數（2026-06-13 抓取） |
+| --- | --- | --- | --- | --- |
+| Anthropic | Claude | `anthropic` | ✅ 納入 | 25 |
+| OpenAI | ChatGPT | `openai` | ✅ 納入 | 50 |
+| Google | Gemini | `google` | ✅ 納入 | 22 |
+| xAI | Grok | `xai` | 🔶 選用（先留接口，預設先不抓） | 8 |
+
+- 上表 provider key 與模型數，皆以 `curl https://models.dev/api.json` 實抓驗證過（145 個 provider 中這四個都在）。
+- 實作上把「要抓哪些 provider」做成一個**設定陣列**（例如 `['anthropic','openai','google']`），要不要加 Grok 改一行設定即可，不必動邏輯。
+- Google 另有 `google-vertex`（Vertex AI 託管）這個 key；本專案要的是原廠 Gemini 定價，**用 `google` 即可**，先不碰 `google-vertex`。
+
+### 4.5 D1 資料表設計（現價 ＋ 歷史）
+
+兩張表：`current` 給前端讀現價（每個模型一列）、`history` 累積每次價格變動（借鏡 simonw 的 `from_date`/`to_date`）。
+
+```sql
+-- 現價：每個模型最新狀態，前端主要讀這張
+CREATE TABLE model_pricing_current (
+  provider                    TEXT    NOT NULL,
+  model_id                    TEXT    NOT NULL,
+  display_name                TEXT    NOT NULL,
+  input_price_per_mtok        REAL,            -- 找不到價格用 NULL，不要用 0
+  output_price_per_mtok       REAL,
+  cached_input_price_per_mtok REAL,
+  context_window              INTEGER,
+  source_updated_at           TEXT,            -- models.dev 的 last_updated（ISO 8601）
+  fetched_at                  TEXT    NOT NULL, -- 我們這次抓取的時間（ISO 8601）
+  PRIMARY KEY (provider, model_id)
+);
+
+-- 歷史：價格每變一次累積一列；本專案開始抓之後才有資料
+CREATE TABLE model_pricing_history (
+  provider                    TEXT    NOT NULL,
+  model_id                    TEXT    NOT NULL,
+  input_price_per_mtok        REAL,
+  output_price_per_mtok       REAL,
+  cached_input_price_per_mtok REAL,
+  from_date                   TEXT    NOT NULL, -- 此價格生效起日（ISO 8601）
+  to_date                     TEXT,             -- 失效日；仍生效中則 NULL
+  PRIMARY KEY (provider, model_id, from_date)
+);
+```
+
+排程 Worker 每次跑的邏輯（精簡版）：
+
+1. 抓 `models.dev/api.json`，過濾 §4.4 的 provider，轉成本 schema。
+2. 對每個模型：`UPSERT` 進 `model_pricing_current`（更新現價與 `fetched_at`）。
+3. 跟 `history` 內該模型「`to_date` 為 NULL」那一列的價格比對：**有變動**才把舊列補上 `to_date = 今天`，再插入一列新的（`from_date = 今天`）；沒變動就不動 history。
+4. 抓取失敗則整批跳過、保留舊資料、記 log（見 §4.3 容錯）。
+
+> §4.2 的 `ModelPricing` interface 對應的是 `model_pricing_current` 一列的「現價」形狀；歷史多了 `from_date`/`to_date` 兩欄，如上表。
 
 ---
 
@@ -173,5 +241,7 @@ interface ModelPricing {
 
 ## 7. 待補／後續（不在本 Issue 範圍）
 
-- 正式匯入完整資料集、寫抓取/轉換程式 → 另開實作型 Issue（依賴本 schema）。
-- 若決定做歷史價或免重部署更新 → 重新評估 KV/D1（見 4.3）。
+- **建 D1 ＋ 排程 Worker（Cron Trigger）**：寫抓取/過濾/轉換 ＋ 寫入 `current`/`history` 的邏輯（見 §4.3、§4.5）→ 另開實作型 Issue（依賴本 schema 與資料表設計）。
+- **前端讀取層**：前端 Worker 讀 D1（必要時加 KV/Cache 快取現價）→ 視情況併入或另開實作型 Issue。
+- **歷史只能往後累積**：開始抓之前的歷史補不回來（見 §4.3）；若日後真的要回填，得另尋有授權的歷史來源。
+- **Grok（xAI）**：先留設定接口、預設不抓；要納入時改一行 provider 設定即可（見 §4.4）。
