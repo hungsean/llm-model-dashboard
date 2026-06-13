@@ -60,3 +60,16 @@
 - 輸出：建立 Issue #7「價格資料層」。範圍含 D1 兩張表 ＋ Cron 排程抓取/過濾/轉換/UPSERT ＋ 歷史 diff ＋ 容錯 ＋ `GET /api/pricing` 讀取端點；明確不做前端 UI、預設不抓 Grok、不做 KV 快取、不回填歷史、不接備援來源。依據 `docs/1-pricing-data-source.md` §4.2–§4.5。
 - 相依：依賴 #1（schema/資料表）與 #3（骨架）；為 #4 的前置。同步把 #4 改成讀本張端點。
 - 大小估「中（偏大）」，已標註若過大可把讀取端點切出。可交給 Agent Issue Review。
+
+### 2026-06-13 15:45 ｜ Agent Issue Review
+- 輸出：Review Suggestion：需要修改。
+- 問題：
+  - Issue 同時包含 Worker 入口改造、D1 database/binding/migration、Cron 抓取與轉換、`current` UPSERT、`history` diff、抓取失敗容錯、`GET /api/pricing` 端點、以及本地或部署後手動 seed/觸發方式。這已經是多個可獨立驗收的目標，依大小尺規偏大，實作與 review 很可能超過一張中型 Issue。
+  - 「建立 D1 database」與「一次手動觸發 / seed 方式」的邊界不夠清楚：需要 Planning Agent 明確說這張是只提交 migration/config/instructions，還是要實作可重複使用的手動匯入端點、指令或 scheduled 呼叫路徑。若包含部署後可呼叫的觸發端點，也要說明是否需要保護，避免新增非預期寫入 API。
+  - `GET /api/pricing` 的回傳形狀同時寫「對齊 §4.2」與「帶上 `fetched_at`」，驗收條件又允許「整體或每筆的 `fetched_at`」。這會讓 #4 的前端契約不穩，Implement Agent 可能做出不同但都算符合文字的 API。
+- 建議：
+  - 拆成至少兩張 Issue：第一張做 Worker 入口、D1 binding、migration、Cron 匯入、UPSERT、history diff、容錯與本地手動觸發；第二張做 `GET /api/pricing` 讀取端點與穩定 API contract，作為 #4 的直接前置。若希望 #4 能很快開工，也可以把讀取端點獨立成小 Issue，但要依賴第一張已有 seed 資料。
+  - 在資料層 Issue 補清楚 D1 database 建立的交付邊界，例如「提交 migration 與 wrangler binding placeholder，實際 database id 由部署者填入」或「實作時要執行 wrangler 建庫並更新 binding」。
+  - 明確指定手動觸發方式的安全邊界：偏好本地/dev 指令或內部函式呼叫；若要部署後 HTTP 觸發，需另寫權限/secret 驗收條件，否則本張不應新增寫入 API。
+  - 固定 `/api/pricing` 回傳契約，例如 `fetchedAt` 是每筆欄位或 response metadata 二選一，欄位命名也需與 §4.2 camelCase 一致，避免前端後續重工。
+- 下一步：回到 Planning Agent。
