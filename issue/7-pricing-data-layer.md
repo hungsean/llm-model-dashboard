@@ -128,3 +128,25 @@
 
 - 下一步：交給 Agent Code Review。
 
+### 2026-06-13 16:46 ｜ Agent Code Review
+- 輸出：Review Report：無需修改。
+- 看過的改動點：
+  - `wrangler.jsonc`：已加入 Worker `main`、assets binding、每日 Cron Trigger、D1 binding/database id/migrations_dir；符合 #7 的 Worker 入口、D1 binding 與排程需求。
+  - `migrations/0001_init.sql`：`model_pricing_current` 與 `model_pricing_history` 欄位、NULL 邊界與主鍵符合 `docs/1-pricing-data-source.md` §4.5。
+  - `src/worker/index.ts`：`fetch` 只轉交 static assets，沒有新增 production HTTP 寫入/觸發端點；`scheduled()` 透過 `ctx.waitUntil(ingestPricing(env))` 執行攝取，符合 #7 邊界，讀取 API 留給 #8。
+  - `src/worker/config.ts`：provider 設定集中在 `TRACKED_PROVIDERS = ['anthropic','openai','google']`，加 Grok 只需改設定陣列。
+  - `src/worker/models-dev.ts`：抓取 `models.dev/api.json`、非 2xx 丟錯、過濾三家並轉成本專案 schema；缺價格/context 轉 `null`，沒有把缺值寫成 0。
+  - `src/worker/ingest.ts`：抓取/解析失敗或過濾後 0 筆會早退並保留既有 D1；成功時 UPSERT `current` 並依價格差異維護 `history`，同日變價採覆蓋當日區間以避免 `(provider, model_id, from_date)` 主鍵衝突，這個取捨合理且已在 Implement 留言說明。
+  - TypeScript 設定與 `worker-configuration.d.ts`：Worker 型別納入根 typecheck，前端 tsconfig 排除 Worker，乾淨環境可直接 typecheck/build。
+- 驗證：
+  - `pnpm typecheck`：通過。
+  - `pnpm lint`：通過。
+  - `pnpm build`：通過；第一次在 sandbox 內 Wrangler log 寫入被擋但 build exit 0，已用升級權限重跑並乾淨通過。
+  - `pnpm wrangler d1 migrations list DB --local`：通過，顯示 local 無待套用 migration。
+  - `pnpm wrangler d1 execute DB --local --command "SELECT COUNT(*) AS n FROM model_pricing_current"`：local current 為 97 筆。
+  - `pnpm wrangler d1 execute DB --local --command "SELECT COUNT(*) AS n FROM model_pricing_history"`：local history 為 97 筆。
+  - `PRAGMA table_info(model_pricing_current)` 與 `PRAGMA table_info(model_pricing_history)`：local schema 與 migration 相符。
+- 風險：
+  - 沒有需要擋下的風險。尚未 remote migration/deploy 是 Implement 留言中明確保留給主人確認的 production 動作，符合本張不自行部署的取捨。
+- 結論：無需修改。
+- 下一步：產出 Review Report，交給人確認；若人確認通過，PR 推送前請手動把這張 Issue 移到 `/closed` 收尾。
