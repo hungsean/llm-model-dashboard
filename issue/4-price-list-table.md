@@ -125,3 +125,20 @@
 - 改動：`src/components/PricingTable.tsx` — 把 `val.toFixed(2)` 換成 module-level `priceFormatter`（`Intl.NumberFormat`）。
 - 驗證：Node 一行確認 `0.075 → $0.075`、`0.02 → $0.02`、`15 → $15.00`；Playwright WebKit 截圖確認 `Gemini 2.0 Flash-Lite` 顯示 `$0.075`（原來是 `$0.07`）；`pnpm typecheck` 通過。
 - 下一步：交給 **Agent Code Review**。
+
+### 2026-06-14 13:22 ｜ Agent Code Review
+- 輸出：Review Report：無需修改。
+- 看過的改動點：
+  - `src/components/PricingTable.tsx`：`formatPrice()` 已從 `toFixed(2)` 改成 module-level `Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 })`，能保留 seeded data 中 `0.075` 這類 /MTok 價格精度，也維持一般價格兩位小數。
+  - 修正範圍集中在前端價格格式化，沒有改到 `/api/pricing` contract、排序、篩選、空狀態、RWD 或資料層。
+- 驗證：
+  - `pnpm typecheck`：通過。
+  - `pnpm lint`：通過。
+  - `pnpm build`：通過；sandbox 內 Wrangler log 寫入被擋但 build exit 0，已用升級權限重跑並乾淨通過。
+  - `pnpm dev`：升級權限後啟動於 `http://localhost:5173/`，抽查 `GET /api/pricing` 回 200 JSON、97 筆資料。
+  - runtime 抽查 `google/gemini-2.0-flash-lite`：API `inputPricePerMTok = 0.075`，目前 formatter 輸出 `$0.075`；`outputPricePerMTok = 0.3` 輸出 `$0.30`；`cachedInputPricePerMTok = null` 仍以「—」占位。
+- 風險：
+  - 沒有需要擋下的資料、安全或相容性風險。
+  - 非阻擋提醒：完整分支相對 main 仍包含 `.workflow-rules` submodule pointer 更新；若這不是本張 Issue 要帶出的變更，PR 前請確認或移出。
+- 結論：無需修改。
+- 下一步：產出 Review Report，交給人確認；若人確認通過，PR 推送前請手動把這張 Issue 移到 `/closed` 收尾。
