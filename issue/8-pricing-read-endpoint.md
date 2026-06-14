@@ -30,14 +30,21 @@
     outputPricePerMTok: number | null;
     cachedInputPricePerMTok: number | null;  // 無則 null
     contextWindow: number | null;
-    updatedAt: string;          // 來源 last_updated（ISO 8601）
+    updatedAt: string | null;   // 來源 last_updated（ISO 8601）；來源沒給則 null
   }
   ```
 
   - `fetchedAt` 是 **response 層級的單一時間戳**（取 `model_pricing_current.fetched_at` 的最新值），**不是每筆欄位**——避免 #4 拿到不一致的時間。
   - 欄位命名一律 **camelCase**，對齊 §4.2；DB 的 snake_case 在端點內轉換。
   - 找不到的價格如實回傳 **`null`**（不要 0、不要省略欄位）。
+  - **`updatedAt` 對應 DB `source_updated_at`，該欄無 `NOT NULL`（#7 的 `PricingRecord.sourceUpdatedAt` 也是 `string | null`），故契約定為 `string | null`、如實回傳 `null`**，不要丟錯也不要塞空字串。
 - D1 沒有資料時（例如尚未跑過攝取）：回 `200` ＋ `{ "fetchedAt": null, "models": [] }`（前端可顯示空狀態），不要回 500。
+- **路由與 method**（本專案 `wrangler.jsonc` 設了 `not_found_handling: "single-page-application"`，未匹配路由會回 `index.html` ＋ 200，必須主動處理）：
+  - `fetch()` 內**先判斷 `/api/` 前綴**，命中 API 才走端點邏輯；非 `/api/` 才 fall through 到 `env.ASSETS.fetch`（首頁照常）。
+  - `GET /api/pricing` 以外的 **`/api/*` 路徑回 JSON `404`**（不可 fall through 到 SPA，否則回一坨 HTML）。
+  - `/api/pricing` 的**非 GET method（POST/PUT/...）回 `405`**（method not allowed），呼應「唯讀」。
+  - **同源**：前端 #4 與 API 由同一個 Worker 服務，**不需也不要加 CORS header**。
+- **D1 查詢失敗**（query 真的 throw，非「無資料」）：回 `500` ＋ 記一筆 log，不要把錯誤吞掉當成空資料。
 
 **不做：**
 
@@ -50,11 +57,14 @@
 ## 驗收條件
 
 - [ ] `GET /api/pricing` 回 HTTP 200、`application/json`，body 結構為 `{ fetchedAt, models: [...] }`。
-- [ ] `models` 每筆欄位名與型別符合上方 `ModelPricing`（camelCase；價格與 `contextWindow` 可為 `null` 並如實回傳 `null`）。
+- [ ] `models` 每筆欄位名與型別符合上方 `ModelPricing`（camelCase；價格、`contextWindow`、`updatedAt` 可為 `null` 並如實回傳 `null`）。
 - [ ] `fetchedAt` 是 response 層級單一 ISO 8601 字串，取自 `model_pricing_current.fetched_at` 最新值。
 - [ ] D1 無資料時回 `200` ＋ `{ "fetchedAt": null, "models": [] }`，不回 5xx。
-- [ ] 端點唯讀：不存在任何透過 HTTP 改動 D1 的路徑。
-- [ ] static assets 首頁與 `/api/pricing` 能由同一個 Worker 並存服務（互不影響）。
+- [ ] 端點唯讀：不存在任何透過 HTTP 改動 D1 的路徑；`/api/pricing` 的非 GET method 回 `405`。
+- [ ] `GET /api/pricing` 以外的 `/api/*` 路徑回 JSON `404`（不會 fall through 成 SPA 的 `index.html`）。
+- [ ] 非 `/api/` 路徑（首頁、static assets）仍由 `env.ASSETS` 正常服務，與 `/api/pricing` 互不影響。
+- [ ] response 不含 CORS header（同源，不需要）。
+- [ ] D1 查詢失敗（throw）時回 `500` 並記 log，不會被當成空資料回 200。
 
 ## 預估大小
 
@@ -72,3 +82,14 @@
 - 輸出：建立 Issue #8「價格讀取端點 `GET /api/pricing`」。定案契約 `{ fetchedAt, models: ModelPricing[] }`：`fetchedAt` 為 response 層級單一時間戳（取 `current.fetched_at` 最新值）、欄位全 camelCase 對齊 §4.2、`null` 價格如實回傳、無資料回 200＋空陣列。明確唯讀、不做寫入/分頁/篩選/歷史/UI/快取。
 - 相依：依賴 #7（D1 ＋ Worker 入口 ＋ seed 資料）；為 #4 直接前置。鏈路 #7 → #8 → #4。
 - 大小估「小」。可交給 Agent Issue Review。
+
+### 2026-06-14 ｜ Planning Agent（進 Review 前補強）
+- 緣由：交給 Agent Issue Review 前，對齊 #7 已 merge 的實作（`src/worker/index.ts`、`types.ts`、`migrations/0001_init.sql`、`wrangler.jsonc`），補掉契約與邊界的漏洞。
+- 修正：
+  1. **`updatedAt` 型別硬傷**：原契約 `string`，但 DB `source_updated_at` 無 `NOT NULL`、#7 `PricingRecord.sourceUpdatedAt` 為 `string | null`，改為 `updatedAt: string | null` 並如實回傳 null。
+  2. **SPA fallback 路由陷阱**：`wrangler.jsonc` 設 `not_found_handling: "single-page-application"`，未匹配路由會回 `index.html`＋200，故明定 `fetch()` 先攔 `/api/` 前綴、非 API 才 fall through 到 `ASSETS`；其他 `/api/*` 回 JSON 404。
+  3. **method 限制**：`/api/pricing` 非 GET 回 405，呼應「唯讀」。
+  4. **同源**：與前端 #4 同一 Worker，明定不加 CORS header。
+  5. **錯誤情境**：D1 查詢 throw 時回 500＋log，不吞錯當空資料。
+- 對應驗收條件已同步新增（405、/api/* 404、ASSETS 並存、無 CORS、查詢失敗 500）。
+- 大小仍估「小」，皆為單一端點內的路由與轉換細節，無新增模組。可交給 Agent Issue Review。
