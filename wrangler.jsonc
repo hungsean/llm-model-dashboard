@@ -2,7 +2,21 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "llm-model-dashboard",
   "compatibility_date": "2026-06-13",
+  "main": "src/worker/index.ts",
   "assets": {
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
   },
+  // 每日一次（06:00 UTC）抓 models.dev 更新價格；見 src/worker/scheduled。
+  "triggers": {
+    "crons": ["0 6 * * *"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "llm-model-dashboard-pricing",
+      "database_id": "91547166-7b5e-44de-9522-b7782304100d",
+      "migrations_dir": "migrations",
+    },
+  ],
 }
