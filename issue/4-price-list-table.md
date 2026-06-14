@@ -94,3 +94,28 @@
   - 驗收條件可判斷：列資料、input/output 排序、provider 篩選、關鍵字搜尋、單位與 `fetchedAt`、nullable 欄位占位、空資料狀態與手機寬度可讀性都能逐項驗證。
   - 明顯風險已被擋住：已要求 nullable 價格與 `contextWindow` 不顯示成 0 或空白、`fetchedAt=null` 有可讀標示、空資料 `200 + { fetchedAt:null, models:[] }` 不當錯誤處理，避免前端誤導使用者或破版。
 - 下一步：交給 Implement Agent。
+
+### 2026-06-14 13:17 ｜ Agent Code Review
+- 輸出：Review Report：需要修改。
+- 看過的改動點：
+  - `src/components/PricingTable.tsx`：有呼叫 `/api/pricing`、處理 loading/error/空資料、provider 篩選、模型名稱/ID 搜尋、input/output 排序與 nullable `input`/`output`/`contextWindow` 占位，整體方向符合 #4。
+  - `src/components/PricingTable.css`：桌面表格可水平捲動，手機寬度改卡片式 `data-label` layout，範圍仍集中在 #4 的 RWD 表格。
+  - `src/App.tsx` / `src/App.css`：只接入 `<PricingTable />` 並放寬內容寬度，屬本張 Issue 需要。
+- 問題：
+  - `src/components/PricingTable.tsx` 的 `formatPrice()` 用 `val.toFixed(2)` 固定兩位小數，會把實際可見價格四捨五入甚至因 JS 浮點顯示成偏低值。實測 local D1/API 中 `google/gemini-2.0-flash-lite` 的 `input_price_per_mtok = 0.075`，目前表格會顯示為 `$0.07`。
+- 原因：
+  - #4 的核心價值是價格列表；價格顯示錯誤會直接誤導使用者比較模型成本。這不是單純樣式偏好，因為資料來源保留到 3 位以上小數，而 UI 把精度截掉/捨入後與 API 原值不一致。
+- 建議：
+  - 調整價格格式化，保留 API 價格的有效精度，例如用 `Intl.NumberFormat` 設合理的 `maximumFractionDigits`（至少 4 或依資料精度）並避免把 `0.075` 顯示成 `$0.07`。修完後用 seeded data 驗證 `gemini-2.0-flash-lite` 顯示不失真，並確認 `null` 仍顯示「—」。
+  - 非阻擋但 PR 前要注意：本分支目前也包含 `.workflow-rules` submodule pointer 更新（來自較早的 planning/fix commit，不是 implementation commit）。若這不是本張 Issue 有意要帶出的變更，PR 前請移除或另行確認。
+- 驗證：
+  - `pnpm typecheck`：通過。
+  - `pnpm lint`：通過。
+  - `pnpm build`：通過；第一次 sandbox 內 Wrangler log 寫入被擋但 build exit 0，已用升級權限重跑並乾淨通過。
+  - `pnpm dev`：sandbox 內因 inspector/local port 權限失敗，升級權限後啟動於 `http://localhost:5174/`。
+  - `GET /api/pricing` runtime 抽查：回 200 JSON，`models` 97 筆，provider 為 `anthropic`/`google`/`openai`，nullable 價格資料存在。
+  - `pnpm wrangler d1 execute DB --local --command "SELECT ... WHERE input_price_per_mtok = 0.075"`：確認 local D1 有 `google/gemini-2.0-flash-lite` 的 visible input price `0.075`，對應上述顯示問題。
+- 風險：
+  - 除價格精度顯示外，未發現需要擋下的資料、安全或 API 相容性問題。
+- 結論：需要修改。
+- 下一步：回到 Implement Agent。
