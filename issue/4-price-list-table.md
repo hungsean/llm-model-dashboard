@@ -74,6 +74,17 @@
 - 範圍仍是純前端表格、核心驗收不變，大小維持「中」。
 - 下一步：#4 前置（#7→#8）已完成，規劃就緒 → 交給 **Agent Issue Review**。
 
+### 2026-06-14 ｜ Implement Agent
+- 輸出：建立 `src/components/PricingTable.tsx` 與 `PricingTable.css`，更新 `App.tsx` 引入元件。
+- 改了什麼：
+  1. `PricingTable.tsx`：React 元件，fetch `/api/pricing`，`useMemo` 做篩選（provider / 關鍵字）與排序（input / output 價，點欄位切換升降冪），含 loading / error / 空資料三種狀態。null 欄位以「—」占位，`fetchedAt=null` 顯示「尚無資料」。
+  2. `PricingTable.css`：桌面用水平捲動表格，手機（<600px）改卡片式 `data-label` layout，不破版。
+  3. `App.tsx`：引入 `<PricingTable />`。
+  4. `App.css`：max-width 從 768px 放寬至 1100px，讓表格有足夠空間。
+- 怎麼驗證：`pnpm typecheck` 通過（無型別錯誤）；Playwright WebKit 桌面截圖確認表格資料正確顯示、排序 ▲/▼ 標示正確；Playwright 手機寬度（390px）截圖確認卡片式 RWD 正常。
+- 取捨：排序目前是前端 in-memory sort（資料筆數 ~97 筆，效能無疑慮）；`null` price 在排序時排到最後（直覺符合「資料不全」語意）。
+- 下一步：交給 **Agent Code Review**。
+
 ### 2026-06-14 12:58 ｜ Agent Issue Review
 - 輸出：Review Suggestion：無需修改。
 - 理由：
