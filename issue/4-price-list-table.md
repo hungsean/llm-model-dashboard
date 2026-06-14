@@ -73,3 +73,13 @@
   3. **nullability 依據從 §4.2 改指向 #8 契約**：§4.2 把 input/output/contextWindow/updatedAt 寫成非 null 較寬鬆，真正權威是 #8 已實作的 `ModelPricing`。→ 範圍首條改為「以 #8 契約的 nullable 邊界為準」，§4.2 降為 schema 基礎。
 - 範圍仍是純前端表格、核心驗收不變，大小維持「中」。
 - 下一步：#4 前置（#7→#8）已完成，規劃就緒 → 交給 **Agent Issue Review**。
+
+### 2026-06-14 12:58 ｜ Agent Issue Review
+- 輸出：Review Suggestion：無需修改。
+- 理由：
+  - Issue 目標清楚：只做前端價格列表頁，從 #8 已固定的 `GET /api/pricing` 契約載入資料並呈現表格、排序、provider 篩選與模型名稱搜尋。
+  - 範圍大小適中：以目前前端仍是 placeholder 的狀態來看，主要會集中在 `App` 與樣式層，屬中型單一目標；沒有混入資料層、讀取端點、比較器、試算器、歷史圖或帳號功能。
+  - 邊界與相依關係清楚：明確依賴已完成的 #8（而 #8 依賴 #7），並把 #7/#8/#4 的責任切分寫清楚，Implement Agent 不需要猜資料來源或 API contract。
+  - 驗收條件可判斷：列資料、input/output 排序、provider 篩選、關鍵字搜尋、單位與 `fetchedAt`、nullable 欄位占位、空資料狀態與手機寬度可讀性都能逐項驗證。
+  - 明顯風險已被擋住：已要求 nullable 價格與 `contextWindow` 不顯示成 0 或空白、`fetchedAt=null` 有可讀標示、空資料 `200 + { fetchedAt:null, models:[] }` 不當錯誤處理，避免前端誤導使用者或破版。
+- 下一步：交給 Implement Agent。
