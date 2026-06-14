@@ -125,3 +125,24 @@
   - `fetchedAt` 在 JS 端用字串比較取最新（非 SQL `MAX`）：少一次查詢、ISO 8601 字典序＝時間序，正確；目前同批攝取的 `fetched_at` 本就相同。
   - 測「無資料」時，曾用另一 process 對同一 SQLite 檔做 DDL 導致 dev server 連線狀態錯亂、短暫回非預期錯誤；重啟 dev server（fresh 連線）後結果正確。屬本地測試方法的假象，非端點 bug。
 - 下一步：交給 Agent Code Review。
+
+### 2026-06-14 12:44 ｜ Agent Code Review
+- 輸出：Review Report：無需修改。
+- 看過的改動點：
+  - `src/worker/api.ts`：`handleApiRequest()` 只分派 `/api/pricing` 與其他 `/api/*`，未匹配 API 回 JSON 404；`GET /api/pricing` 唯讀查 `model_pricing_current`，做 snake_case → camelCase 轉換，`null` 欄位如實保留，符合 #8 契約。
+  - `src/worker/api.ts`：非 GET method 回 405 並帶 `Allow: GET`；D1 query throw 會 `console.error()` 並回 JSON 500，沒有把查詢錯誤吞成空資料。
+  - `src/worker/index.ts`：`fetch()` 先攔 `/api/` 再交給 API handler，非 `/api/` 才 fall through 到 `env.ASSETS.fetch()`，符合 SPA fallback 下避免 `/api/*` 回 HTML 的要求；`scheduled()` 既有攝取路徑未被改壞。
+  - `src/worker/types.ts`：新增 `ModelPricing` / `PricingResponse` 對外契約型別，nullable 邊界與 issue 一致；未手寫 `Env`，仍使用 `worker-configuration.d.ts` 產生的 `DB` / `ASSETS` binding。
+- 驗證：
+  - `pnpm typecheck`：通過。
+  - `pnpm lint`：通過。
+  - `pnpm build`：通過；第一次在 sandbox 內 Wrangler log 寫入被擋但 build exit 0，已用升級權限重跑並乾淨通過。
+  - 本地 dev server 抽查：`GET /api/pricing` → 200 `application/json; charset=utf-8`，body 頂層 keys 為 `fetchedAt` / `models`，models 97 筆，單筆 keys 符合契約；`POST /api/pricing` → 405 JSON 且 `Allow: GET`；`GET /api/does-not-exist` → 404 JSON；`GET /` → 200 `text/html`。
+  - Header 抽查：`/api/pricing`、405、404、root response 皆無 `access-control-*` header，符合同源不加 CORS。
+  - `pnpm wrangler d1 execute DB --local --command "SELECT MAX(fetched_at) AS fetched_at, COUNT(*) AS n FROM model_pricing_current"`：local D1 為 97 筆，`MAX(fetched_at)` = `2026-06-13T08:09:13.678Z`，與 API response `fetchedAt` 一致。
+  - 依 Workers review skill 補查最新 `@cloudflare/workers-types@4.20260613.1`：module `fetch` / `scheduled` handler 參數與 D1 `prepare().all<T>()` 型別符合目前用法。
+- 風險：
+  - 沒有需要擋下的功能風險；端點範圍小，沒有新增 HTTP 寫入路徑、沒有 CORS、沒有 SPA fallback 誤回 HTML。
+  - 非阻擋提醒：`pnpm wrangler types --check` 目前會回報 `worker-configuration.d.ts` out of date；產到 `/tmp` 比對後，Env binding 仍是 `DB` / `ASSETS`，差異主要是 Wrangler 現版多產生 `Cloudflare.GlobalProps.mainModule` metadata。這不影響 #8 的 endpoint、typecheck、build 或 runtime 行為，但後續若要嚴格把 `wrangler types --check` 納入 CI，建議另行重產並提交。
+- 結論：無需修改。
+- 下一步：產出 Review Report，交給人確認；若人確認通過，PR 推送前請手動把這張 Issue 移到 `/closed` 收尾。
