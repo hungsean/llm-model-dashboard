@@ -103,3 +103,25 @@
   - 邊界與風險已補齊：明確處理 SPA fallback 下的 `/api/*` JSON 404、`/api/pricing` 非 GET 405、非 `/api/` 仍走 ASSETS、同源不加 CORS，且不新增任何 HTTP 寫入路徑。
   - 相依關係清楚：依賴已完成的 #7，並作為 #4 的直接前置，鏈路 #7 → #8 → #4 可執行。
 - 下一步：交給 Implement Agent。
+
+### 2026-06-14 12:32 ｜ Implement Agent（Claude）
+- 輸出：Implement，完成 `GET /api/pricing` 唯讀端點。
+- **改了什麼**（3 個改動點，可分開審）：
+  1. `src/worker/types.ts`：新增對外契約型別 `ModelPricing`（全 camelCase、價格／contextWindow／updatedAt 皆 `number|null` 或 `string|null`）與 `PricingResponse`（`{ fetchedAt: string|null, models: ModelPricing[] }`）。`updatedAt` 對應 DB `source_updated_at`，故定為 `string|null`。
+  2. `src/worker/api.ts`（新檔）：`handleApiRequest` 做 `/api/*` 路由分派；`getPricing` 唯讀查 `model_pricing_current`、做 snake_case→camelCase 轉換、`fetchedAt` 取所有列 `fetched_at` 最新值（ISO 8601 字典序比較）。統一 `json()` helper（不加 CORS header）。
+  3. `src/worker/index.ts`：`fetch()` 先攔 `/api/` 前綴走 `handleApiRequest`，非 API 才 fall through 到 `env.ASSETS`（避開 SPA fallback 把 `/api/*` 回成 HTML）。
+- **怎麼對應驗收條件**（皆已實測通過）：
+  - 200＋`application/json`＋`{fetchedAt, models}`：`GET /api/pricing` 回 200、`content-type: application/json; charset=utf-8`、頂層 keys 正確。
+  - `models` 欄位名／型別：97 筆全數符合 camelCase 契約 keys 與型別；null 如實保留（cached 24 筆、input/output 各 6 筆為 null）。
+  - `fetchedAt` 單一 ISO 字串：response 值 `2026-06-13T08:09:13.678Z`＝DB `MAX(fetched_at)`。
+  - 無資料回 200＋`{fetchedAt:null, models:[]}`：清空表（fresh 連線）實測回 200＋空契約，不回 5xx。
+  - 唯讀／405：`POST /api/pricing` 回 405＋`Allow: GET`＋JSON；無任何 HTTP 寫入路徑。
+  - `/api/*` 404：`GET /api/does-not-exist` 回 JSON 404（非 SPA HTML）。
+  - 非 `/api/` 仍走 ASSETS：`GET /` 回 200 `text/html`。
+  - 無 CORS header：response 無 `access-control-*`。
+  - 查詢 throw 回 500＋log：catch 中 `console.error("[api] ...")` 並回 500（程式碼路徑；亦於測試環境意外觸發過一次，確認行為正確）。
+- **怎麼驗證**：`pnpm typecheck`、`pnpm lint`、`pnpm build` 皆通過；`pnpm dev`（miniflare 本地 D1，97 筆 seed）以 curl 逐條測上述情境。測「無資料」時有備份整表、測後完整還原（已驗證恢復為 97 筆、備份表已移除）。
+- **風險／取捨**：
+  - `fetchedAt` 在 JS 端用字串比較取最新（非 SQL `MAX`）：少一次查詢、ISO 8601 字典序＝時間序，正確；目前同批攝取的 `fetched_at` 本就相同。
+  - 測「無資料」時，曾用另一 process 對同一 SQLite 檔做 DDL 導致 dev server 連線狀態錯亂、短暫回非預期錯誤；重啟 dev server（fresh 連線）後結果正確。屬本地測試方法的假象，非端點 bug。
+- 下一步：交給 Agent Code Review。
