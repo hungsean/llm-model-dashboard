@@ -7,12 +7,13 @@
 ## 範圍
 
 **要做：**
-- 從 #8 的讀取端點 **`GET /api/pricing`** 取得價格資料載入前端。回傳契約（由 #8 釘死）：`{ fetchedAt: string | null, models: ModelPricing[] }`，`models` 為 §4.2 的 camelCase 形狀，`fetchedAt` 為 response 層級單一時間戳。
+- 從 #8 的讀取端點 **`GET /api/pricing`** 取得價格資料載入前端。回傳契約（由 #8 釘死）：`{ fetchedAt: string | null, models: ModelPricing[] }`，`fetchedAt` 為 response 層級單一時間戳。`models` 的欄位形狀以 **#8 已實作的契約為準**（`src/worker/types.ts` 的 `ModelPricing`）：欄位全 camelCase，且 `inputPricePerMTok` / `outputPricePerMTok` / `cachedInputPricePerMTok` / `contextWindow` 皆 `number | null`、`updatedAt` 為 `string | null`。§4.2 只是 schema 基礎，其型別寫成非 null 較寬鬆，**以 #8 契約的 nullable 邊界為準**——前端不可假設這些欄位保證有值。
 - 以表格呈現各模型：至少含 `provider`、模型名稱（`displayName`）、input 價格、output 價格、context window。
 - 支援**排序**（至少能依 input 價、output 價排序）。
 - 支援**篩選**：依 provider 篩選（選項對齊 #1 鎖定範圍：`anthropic` / `openai` / `google`），並有一個關鍵字搜尋框（模型名稱）。
-- 單位顯示清楚（例如「USD / 1M tokens」）。**資料更新時間採端點回傳的 `fetchedAt`**（response 層級、我們抓取的時間）顯示。
-- `cachedInputPricePerMTok` 或任何價格為 `null` 時，表格以「—」之類的占位顯示，**不要顯示成 0 或空白**（0 會被誤讀成免費）。
+- 單位顯示清楚（例如「USD / 1M tokens」）。**資料更新時間採端點回傳的 `fetchedAt`**（response 層級、我們抓取的時間）顯示。`fetchedAt` 為 `null`（D1 尚無資料）時，不要顯示成空白或亂填，要有可讀的標示（例如「尚無資料」）。
+- **占位符（適用所有 nullable 欄位，不只價格）**：`inputPricePerMTok` / `outputPricePerMTok` / `cachedInputPricePerMTok` 任一價格、以及 `contextWindow` 為 `null` 時，表格以「—」之類的占位顯示，**不要顯示成 0 或空白**（0 會被誤讀成免費；context window 空白會被誤讀成無上限）。
+- **空狀態**：端點回 `200 + { fetchedAt: null, models: [] }`（尚未跑過攝取、或抓取失敗保留空）時，前端顯示空狀態（例如「目前沒有價格資料」），**不要當成錯誤或破版**。
 - 基本 RWD，手機上表格可正常閱讀。
 
 **不做：**
@@ -26,8 +27,9 @@
 - [ ] 頁面能從 `GET /api/pricing` 載入 `models` 並列出，每列含 provider、模型名（displayName）、input 價、output 價、context window。
 - [ ] 可依 input 價與 output 價排序，點擊欄位即時生效。
 - [ ] 可依 provider 篩選（anthropic / openai / google），且關鍵字搜尋能即時過濾模型名稱。
-- [ ] 價格單位明確標示，頁面顯示資料更新時間（採端點回傳的 `fetchedAt`）。
-- [ ] 價格為 `null` 的欄位以占位符（如「—」）顯示，不顯示成 0 或空白。
+- [ ] 價格單位明確標示，頁面顯示資料更新時間（採端點回傳的 `fetchedAt`）；`fetchedAt` 為 `null` 時有可讀標示（如「尚無資料」），不顯示空白。
+- [ ] 任一 nullable 欄位（input／output／cached 價格、`contextWindow`）為 `null` 時以占位符（如「—」）顯示，不顯示成 0 或空白。
+- [ ] 端點回 `{ fetchedAt: null, models: [] }`（空資料）時，頁面顯示空狀態、不報錯也不破版。
 - [ ] 手機寬度下表格不破版、可閱讀。
 
 ## 預估大小
@@ -62,3 +64,12 @@
 - 輸出：把資料來源由「#7 的 `GET /api/pricing`」改為「**#8** 的 `GET /api/pricing`」，並對齊 #8 釘死的契約 `{ fetchedAt, models: ModelPricing[] }`（`fetchedAt` 為 response 層級單一時間戳、欄位 camelCase）；範圍「不做」補上「不寫讀取端點（那是 #8）」。
 - 相依鏈路定為 **#7 → #8 → #4**。
 - 下一步：#4 卡在 #8（#8 又卡 #7）。規劃就緒，待 #8 完成後再開工。
+
+### 2026-06-14 ｜ Planning Agent（#7/#8 完成後開工前重審）
+- 緣由：#7、#8 皆已實作、Code Review 通過並 merge（D1 有 97 筆 seed、`GET /api/pricing` 上線）。開工前回頭比對 #4 規劃與 #7/#8 實際交付，收斂落差。
+- 比對結論：**主體規劃對得準**——資料來源／契約／provider 篩選選項（`anthropic`/`openai`/`google`，與 `src/worker/config.ts` 的 `TRACKED_PROVIDERS` 一致，實測 D1 即此三家共 97 筆）／無分頁排序參數（前端做）／價格 null 占位皆相符。發現 **3 個 null 邊界**需補（#8 實際契約比 §4.2 更嚴格）：
+  1. **`contextWindow` 也是 `number | null`**（`src/worker/types.ts` 確認），但原占位規則只寫「價格」。→ 占位規則放寬到「所有 nullable 欄位（含 `contextWindow`）」，並同步驗收條件。
+  2. **`fetchedAt` 可為 `null`、`models` 可為空**（#8 對空資料回 `200 + {fetchedAt:null, models:[]}`，cron 首跑前／抓取失敗保留空都會遇到）。→ 補「空狀態」範圍與 `fetchedAt=null` 的可讀標示，並加兩條驗收條件。
+  3. **nullability 依據從 §4.2 改指向 #8 契約**：§4.2 把 input/output/contextWindow/updatedAt 寫成非 null 較寬鬆，真正權威是 #8 已實作的 `ModelPricing`。→ 範圍首條改為「以 #8 契約的 nullable 邊界為準」，§4.2 降為 schema 基礎。
+- 範圍仍是純前端表格、核心驗收不變，大小維持「中」。
+- 下一步：#4 前置（#7→#8）已完成，規劃就緒 → 交給 **Agent Issue Review**。
