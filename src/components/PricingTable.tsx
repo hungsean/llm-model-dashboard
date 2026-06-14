@@ -5,9 +5,16 @@ import "./PricingTable.css";
 type SortKey = "inputPricePerMTok" | "outputPricePerMTok";
 type SortDir = "asc" | "desc";
 
+const priceFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
 function formatPrice(val: number | null): string {
   if (val === null) return "—";
-  return `$${val.toFixed(2)}`;
+  return priceFormatter.format(val);
 }
 
 function formatContext(val: number | null): string {

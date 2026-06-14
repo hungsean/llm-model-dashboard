@@ -119,3 +119,9 @@
   - 除價格精度顯示外，未發現需要擋下的資料、安全或 API 相容性問題。
 - 結論：需要修改。
 - 下一步：回到 Implement Agent。
+
+### 2026-06-14 ｜ Implement Agent（修正後）
+- 輸出：修正 `formatPrice()`，改用 `Intl.NumberFormat` with `minimumFractionDigits: 2, maximumFractionDigits: 4`。
+- 改動：`src/components/PricingTable.tsx` — 把 `val.toFixed(2)` 換成 module-level `priceFormatter`（`Intl.NumberFormat`）。
+- 驗證：Node 一行確認 `0.075 → $0.075`、`0.02 → $0.02`、`15 → $15.00`；Playwright WebKit 截圖確認 `Gemini 2.0 Flash-Lite` 顯示 `$0.075`（原來是 `$0.07`）；`pnpm typecheck` 通過。
+- 下一步：交給 **Agent Code Review**。
