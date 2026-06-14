@@ -93,3 +93,13 @@
   5. **錯誤情境**：D1 查詢 throw 時回 500＋log，不吞錯當空資料。
 - 對應驗收條件已同步新增（405、/api/* 404、ASSETS 並存、無 CORS、查詢失敗 500）。
 - 大小仍估「小」，皆為單一端點內的路由與轉換細節，無新增模組。可交給 Agent Issue Review。
+
+### 2026-06-14 12:24 ｜ Agent Issue Review
+- 輸出：Review Suggestion：無需修改。
+- 理由：
+  - Issue 目標清楚且單一：只在既有 Worker `fetch()` 補 `GET /api/pricing` 唯讀端點，讀 `model_pricing_current` 並轉成固定 response contract，不混入攝取、歷史、前端或快取。
+  - 範圍大小適中：依大小尺規屬小型變更，主要是 API 路由判斷、D1 查詢與 snake_case → camelCase 欄位轉換。
+  - 契約已足夠明確：`fetchedAt` 是 response 層級單一時間戳、`models` 欄位與 nullable 邊界明列，空資料回 200＋空陣列，D1 throw 回 500＋log。
+  - 邊界與風險已補齊：明確處理 SPA fallback 下的 `/api/*` JSON 404、`/api/pricing` 非 GET 405、非 `/api/` 仍走 ASSETS、同源不加 CORS，且不新增任何 HTTP 寫入路徑。
+  - 相依關係清楚：依賴已完成的 #7，並作為 #4 的直接前置，鏈路 #7 → #8 → #4 可執行。
+- 下一步：交給 Implement Agent。
