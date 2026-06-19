@@ -86,3 +86,20 @@
 - 大小判斷：中，仍可接受。主要會落在 `PricingTable.tsx`／`PricingTable.css` 加上可序列化條件型別與 matching 純函式，雖然比 #12／#13 大，但仍是同一個目標、未跨後端或資料層。
 - 實作提醒：`between` 已列入範圍與驗收條件，Implement Agent 不應在未退回 Planning Agent 的情況下自行省略；若實作時發現行數或 UI 複雜度逼近「大」，應回到 Planning Agent 拆分或重新收斂驗收條件。
 - 下一步：交給 Implement Agent。
+
+### 2026-06-19 16:39 ｜ Agent Code Review
+- 輸出：Review Report：需要修改。
+- 問題：
+  - `src/components/filterMatcher.ts`：未完成條件（空字串或 malformed number）在 `matchesCondition` 內回傳 `true`，但 `matchesFilter` 仍把只含未完成條件的群組當成有效 OR 群組。結果是使用者已經有一組有效條件時，只要新增第二個尚未填值的 OR 群組，整個條件建構器就會暫時放行全部資料。
+- 原因：
+  - Issue 要求群組之間為 OR、同群組內為 AND，且條件建構器要即時正確過濾。現在「新增群組」的預設空條件會形成永遠成立的 OR 分支，讓已套用的第一組條件失效；這會破壞多群組 OR 的操作流程與即時套用結果。
+- 驗證：
+  - `git diff --check origin/main...HEAD` 通過。
+  - `pnpm lint` 通過。
+  - `pnpm typecheck` 通過。
+  - `pnpm build` exit code 0；build 過程有既有 Wrangler sandbox 外 log 寫入 `EPERM` 訊息，但 Vite 產物完成。
+  - 用暫存編譯後的 `matchesFilter` 做最小重現：`provider=anthropic` 單一群組只回傳 anthropic；加入第二個空白 OR 群組後，同一批資料回傳 anthropic 與 openai，確認 bug 存在。
+- 建議：
+  - 區分「未完成條件」與「已完成且符合」兩種狀態；在 OR 層級應忽略沒有任何 completed condition 的群組，而不是讓它 match all。
+  - 保留單一群組內「填寫中條件不阻斷已完成 AND 條件」的體驗可以，但空白／未完成的 OR 群組不應讓其他已完成群組失效。
+- 下一步：回到 Implement Agent。
