@@ -42,15 +42,29 @@ function matchesCondition(model: ModelPricing, cond: Condition): boolean {
   return true;
 }
 
+// A condition is "completed" when it has enough input to be meaningful.
+// Incomplete conditions are skipped (pass-through) within a group,
+// but a group with NO completed conditions is not a valid OR branch.
+function isCompleted(c: Condition): boolean {
+  if (isStringCondition(c)) return c.value !== "";
+  if (isNumberCondition(c)) {
+    if (c.value === "" || isNaN(parseFloat(c.value))) return false;
+    if (c.op === "between") return c.value2 !== "" && !isNaN(parseFloat(c.value2));
+    return true;
+  }
+  return false;
+}
+
 function matchesGroup(model: ModelPricing, group: { conditions: Condition[] }): boolean {
   return group.conditions.every((c) => matchesCondition(model, c));
 }
 
 // Returns true if the model satisfies the OR-of-AND filter (empty filter = pass all).
+// A group is only treated as a live OR branch when it has at least one completed condition;
+// otherwise adding a new empty group would silently pass all rows.
 export function matchesFilter(model: ModelPricing, filter: FilterState): boolean {
   if (filter.length === 0) return true;
-  // skip groups with zero conditions
-  const activeGroups = filter.filter((g) => g.conditions.length > 0);
+  const activeGroups = filter.filter((g) => g.conditions.some(isCompleted));
   if (activeGroups.length === 0) return true;
   return activeGroups.some((g) => matchesGroup(model, g));
 }

@@ -103,3 +103,8 @@
   - 區分「未完成條件」與「已完成且符合」兩種狀態；在 OR 層級應忽略沒有任何 completed condition 的群組，而不是讓它 match all。
   - 保留單一群組內「填寫中條件不阻斷已完成 AND 條件」的體驗可以，但空白／未完成的 OR 群組不應讓其他已完成群組失效。
 - 下一步：回到 Implement Agent。
+
+### 2026-06-19 ｜ Implement Agent（修正）
+- 問題修正：`filterMatcher.ts` 新增 `isCompleted(condition)` 函式，只有 value 非空且合法（between 時 value2 也要非空）才算已完成條件。`matchesFilter` 改為只把「至少一個已完成條件的群組」視為有效 OR 分支，完全空白的 OR 群組直接忽略。
+- 驗證（Playwright）：provider=anthropic 篩到 25 筆 → 新增空白 OR 群組 → 仍 25 筆（bug 已修）→ 填入 openai → 75 筆 → 加 AND modelId contains mini → 34 筆，全部符合任一群組。
+- 下一步：交給 Agent Code Review。
