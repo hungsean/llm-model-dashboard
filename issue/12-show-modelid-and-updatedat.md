@@ -44,3 +44,6 @@
 - 緣由：兩個欄位都已在 `ModelPricing` 契約裡（`modelId`／`updatedAt`），只是 #4 沒呈現出來。
 - 號碼：本地暫定 #9，GitHub 卡到 **#12**（PR 佔用號碼），已對齊為 #12。
 - 相依：長在 #4；與 #13／#14 同檔，建議依序做。大小「小」，可交給 Agent Issue Review。
+
+### 2026-06-19 11:30 ｜ Agent Issue Review
+- 輸出：Review Suggestion：無需修改。Issue 目標清楚，範圍限於 `PricingTable.tsx`／`PricingTable.css` 的前端呈現；`modelId` 與 `updatedAt` 已在 `ModelPricing` 契約中，不需要改資料層或 API。大小屬小，驗收條件可判斷（含 `updatedAt` null 占位、fetchedAt 區隔、390px 手機寬度與既有排序／篩選／搜尋不受影響）。未見明顯安全、資料一致性或相容性風險。下一步：交給 Implement Agent。
