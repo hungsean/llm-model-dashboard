@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ModelPricing, PricingResponse } from "../worker/types";
+import FilterBuilder from "./FilterBuilder";
+import { matchesFilter } from "./filterMatcher";
+import type { FilterState } from "./filterTypes";
 import "./PricingTable.css";
 
 type SortKey = "inputPricePerMTok" | "outputPricePerMTok";
@@ -39,6 +42,7 @@ export default function PricingTable() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [providerFilter, setProviderFilter] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [filterState, setFilterState] = useState<FilterState>([]);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -60,7 +64,15 @@ export default function PricingTable() {
     if (!data) return [];
     let list = data.models;
 
+    // 1. 條件建構器 (OR-of-AND)
+    if (filterState.length > 0) {
+      list = list.filter((m) => matchesFilter(m, filterState));
+    }
+
+    // 2. Provider 下拉
     if (providerFilter) list = list.filter((m) => m.provider === providerFilter);
+
+    // 3. 關鍵字搜尋
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -69,6 +81,7 @@ export default function PricingTable() {
       );
     }
 
+    // 4. 排序
     return [...list].sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
@@ -77,7 +90,7 @@ export default function PricingTable() {
       if (bv === null) return -1;
       return sortDir === "asc" ? av - bv : bv - av;
     });
-  }, [data, providerFilter, search, sortKey, sortDir]);
+  }, [data, filterState, providerFilter, search, sortKey, sortDir]);
 
   const maxInputPrice = useMemo(() => {
     const vals = sorted
@@ -120,6 +133,8 @@ export default function PricingTable() {
           資料更新：{data.fetchedAt ? formatDate(data.fetchedAt) : "尚無資料"}
         </span>
       </div>
+
+      <FilterBuilder filter={filterState} onChange={setFilterState} />
 
       <div className="pt-controls">
         <select

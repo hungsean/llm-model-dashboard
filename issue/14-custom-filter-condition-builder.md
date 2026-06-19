@@ -61,6 +61,25 @@
 - 設計提醒：把「條件的資料結構」獨立成可序列化型別，#15 直接拿去存。
 - 相依：長在 #4；是 #15 前置；與 #12／#13 同檔建議依序。大小「中」，可交給 Agent Issue Review。
 
+### 2026-06-19 ｜ Implement Agent
+- 輸出：實作完成，新增 4 個檔案、修改 1 個檔案。
+- 改了什麼：
+  1. `src/components/filterTypes.ts` — 可序列化條件型別（StringCondition、NumberCondition、FilterGroup、FilterState），含欄位／運算子清單與 labels，#15 直接拿去用。
+  2. `src/components/filterMatcher.ts` — 純函式 `matchesFilter(model, filterState)` 實作 OR-of-AND 邏輯；null 數值不符合任何數值條件；空值／NaN 條件自動 pass-through（部分輸入不阻斷）。
+  3. `src/components/FilterBuilder.tsx` — 條件建構器 UI：可折疊 header、群組卡片（OR 分隔）、AND badge、欄位／運算子下拉、`between` 雙值輸入、新增／刪除條件、新增／刪除群組、清空；active 條件數 badge。
+  4. `src/components/FilterBuilder.css` — RWD 樣式（桌面 + 390px 手機）。
+  5. `src/components/PricingTable.tsx` — 引入 FilterBuilder 與 matchesFilter，在 `sorted` useMemo 中套用：條件建構器 → provider 下拉 → 關鍵字搜尋 → 排序。
+- 驗證結果（Playwright E2E）：
+  - 97 筆初始 → provider=anthropic AND modelId contains haiku → 5 筆（全是 haiku）✅
+  - OR 群組（openai AND mini）→ 14 筆，全部符合任一群組 ✅
+  - 清空 → 恢復 97 筆 ✅
+  - inputPricePerMTok < 1 → 28 筆，null 價格模型不出現 ✅
+  - between 1 and 5 → 47 筆 ✅
+  - builder + provider 下拉 + 關鍵字搜尋同時 AND 疊加 ✅
+  - 390px 手機不破版 ✅
+- 取捨：空值條件（value=""）視為 pass-through 而非阻斷，避免使用者打字一半就全篩光。
+- 下一步：交給 Agent Code Review。
+
 ### 2026-06-19 16:18 ｜ Agent Issue Review
 - 輸出：Review Suggestion：無需修改。
 - 理由：Issue 目標清楚，聚焦在「條件建構器 UI + 即時套用」同一件事；布林模型限定為一層 OR-of-AND，邊界明確，沒有落入任意巢狀條件或 #15 的命名／儲存範圍。欄位、運算子、null 數值處理、與既有 provider／搜尋／排序的疊加規則都有寫清楚，驗收條件可以逐項判斷。
