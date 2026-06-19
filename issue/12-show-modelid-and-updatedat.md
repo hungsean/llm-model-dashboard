@@ -47,3 +47,16 @@
 
 ### 2026-06-19 11:30 ｜ Agent Issue Review
 - 輸出：Review Suggestion：無需修改。Issue 目標清楚，範圍限於 `PricingTable.tsx`／`PricingTable.css` 的前端呈現；`modelId` 與 `updatedAt` 已在 `ModelPricing` 契約中，不需要改資料層或 API。大小屬小，驗收條件可判斷（含 `updatedAt` null 占位、fetchedAt 區隔、390px 手機寬度與既有排序／篩選／搜尋不受影響）。未見明顯安全、資料一致性或相容性風險。下一步：交給 Implement Agent。
+
+### 2026-06-19 ｜ Implement Agent
+- **改了什麼**：
+  - `PricingTable.tsx`：「模型」cell 改以 `.pt-model-cell` wrapper 包住 `displayName` 與 `modelId`；新增第六欄「更新時間」顯示 `m.updatedAt`（沿用 `formatDate`，null 自動回傳「—」）；`colSpan` 由 5 改為 6。
+  - `PricingTable.css`：新增 `.pt-model-cell`（`inline-flex / column`）與 `.pt-model-id`（0.78rem / color #888）。
+- **驗收條件對應**：
+  - ✅ `modelId` 灰色小字顯示於 `displayName` 下方（`.pt-model-id`）。
+  - ✅ `updatedAt` 新欄顯示；null 時 `formatDate` 回傳「—」。
+  - ✅ 「資料更新（fetchedAt）」維持不變於頁頭，未改動。
+  - ✅ 桌面與手機（390px）截圖驗證無破版、可讀。
+  - ✅ 未動排序邏輯、provider 篩選、搜尋。
+- **驗證**：dev server 啟動後，Playwright 截圖桌面（1280px）與手機（390px×844px）各一張，視覺確認。
+- **風險取捨**：無。純前端顯示，不動資料層。下一步：交給 Agent Code Review。

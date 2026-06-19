@@ -88,6 +88,17 @@
   color: #e53e3e;
 }
 
+.pt-model-cell {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.pt-model-id {
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: 0.1rem;
+}
+
 .pt-count {
   font-size: 0.82rem;
   opacity: 0.55;

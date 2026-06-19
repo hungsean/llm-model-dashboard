@@ -151,12 +151,13 @@ export default function PricingTable() {
                 Output 價格{sortLabel("outputPricePerMTok")}
               </th>
               <th>Context Window</th>
+              <th>更新時間</th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="pt-empty">
+                <td colSpan={6} className="pt-empty">
                   沒有符合條件的模型
                 </td>
               </tr>
@@ -164,10 +165,16 @@ export default function PricingTable() {
               sorted.map((m: ModelPricing) => (
                 <tr key={`${m.provider}/${m.modelId}`}>
                   <td data-label="Provider">{m.provider}</td>
-                  <td data-label="模型">{m.displayName}</td>
+                  <td data-label="模型">
+                    <span className="pt-model-cell">
+                      <span className="pt-model-name">{m.displayName}</span>
+                      <span className="pt-model-id">{m.modelId}</span>
+                    </span>
+                  </td>
                   <td data-label="Input 價格">{formatPrice(m.inputPricePerMTok)}</td>
                   <td data-label="Output 價格">{formatPrice(m.outputPricePerMTok)}</td>
                   <td data-label="Context Window">{formatContext(m.contextWindow)}</td>
+                  <td data-label="更新時間">{formatDate(m.updatedAt)}</td>
                 </tr>
               ))
             )}
