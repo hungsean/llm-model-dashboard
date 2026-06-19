@@ -46,3 +46,30 @@
 - 緣由：用表內長條取代 #5 的另開比較視圖，更輕量。
 - 號碼：本地暫定 #10，GitHub 卡到 **#13**，已對齊。
 - 相依：長在 #4；與 #12／#14 同檔，建議依序做。大小「小（偏中）」，可交給 Agent Issue Review。
+
+### 2026-06-19 15:05 ｜ Agent Issue Review
+- 輸出：Review Suggestion：無需修改。
+- 理由：Issue 目標清楚，限定在 input／output 價格 cell 的背景比例長條；範圍邊界明確，排除圖表庫、context window、tooltip、排序／篩選邏輯改動與最佳值高亮；驗收條件可判斷，涵蓋當前可見資料正規化、null 價格、桌面／390px 手機寬度與 package 相依檢查。
+- 大小判斷：小（偏中）合理，主要落在 `PricingTable.tsx` 與 `PricingTable.css`，屬同一目標且未跨多模組。
+- 實作提醒：現有資料契約中 `0` 是有效價格、`null` 才是未知；Implement Agent 計算最大值時需避免可見列最大值為 `0` 時產生 `NaN`／無效 CSS，這是局部防呆，不影響本 Issue 通過。
+- 下一步：交給 Implement Agent。
+
+### 2026-06-19 15:30 ｜ Implement Agent
+- 輸出：Implement 完成。
+- 改了什麼：
+  - `PricingTable.tsx`：在 `sorted` memo 後新增 `maxInputPrice`／`maxOutputPrice` 兩個 useMemo，取當前可見列排除 null 後的最大值；input／output 價格 `<td>` 改用 CSS custom property `--bar-pct` 傳入比例百分比。
+  - `PricingTable.css`：新增 `.pt-price-cell`、`.pt-price-input`（indigo 0.18 透明度）、`.pt-price-output`（emerald 0.18 透明度）三個 class，用 `linear-gradient` 依 `--bar-pct` 畫背景長條。
+- 怎麼對應驗收條件：
+  - 兩欄各有背景長條 ✓；依可見列最大值正規化，filter/search 觸發 useMemo 重算 ✓；formatPrice 精度不變 ✓；null → style undefined → CSS fallback 0% → 無長條 ✓；手機卡片式 layout 截圖確認不破版 ✓；僅改 .tsx/.css 兩檔，package.json 無變動 ✓。
+- 風險取捨：maxInputPrice = 0（全部 null 或全部 0 價格）時不畫長條，此邊界情況已在 `maxInputPrice > 0` 條件中處理，符合 Issue Review 的實作提醒。
+- 下一步：交給 Agent Code Review。
+
+### 2026-06-19 15:29 ｜ Agent Code Review
+- 輸出：Review Report：無需修改。
+- 看過的改動點：
+  - `PricingTable.tsx`：`maxInputPrice`／`maxOutputPrice` 從當前 `sorted` 可見列排除 null 後計算，provider 篩選與搜尋變動會跟著重算；price cell 用 `--bar-pct` 傳比例，且 `max > 0` 防呆可避免全部 0／null 時產生無效 CSS。符合 Issue。
+  - `PricingTable.css`：input／output 兩欄以不同低透明度背景漸層畫長條，未引入圖表套件；桌面 table cell 與手機 flex card layout 都是背景層，不會改變既有欄位內容或排序／篩選行為。符合 Issue。
+  - `issue/closed/12-show-modelid-and-updatedat.md`：分支上另有 #12 issue 檔案移到 `closed` 的人為整理 commit，非 #13 實作內容；不影響本次功能審查，但 PR 範圍會包含此 metadata 變更。
+- 驗證：`git diff --check origin/main...HEAD` 通過；`pnpm lint` 通過；`pnpm typecheck` 通過；`pnpm build` exit code 0，build 過程有 Wrangler 嘗試寫 sandbox 外 log file 的 EPERM 訊息，但產物建置完成且工作樹未留下變更。
+- 風險：沒有需要擋下的功能、安全、資料或相容性風險。
+- 結論：無需修改，交給人確認；抵達 PR 推送時，請人手動把 Issue #13 移到 `/closed` 收尾。

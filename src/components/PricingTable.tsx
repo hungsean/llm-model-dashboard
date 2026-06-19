@@ -79,6 +79,20 @@ export default function PricingTable() {
     });
   }, [data, providerFilter, search, sortKey, sortDir]);
 
+  const maxInputPrice = useMemo(() => {
+    const vals = sorted
+      .filter((m) => m.inputPricePerMTok !== null)
+      .map((m) => m.inputPricePerMTok as number);
+    return vals.length > 0 ? Math.max(...vals) : 0;
+  }, [sorted]);
+
+  const maxOutputPrice = useMemo(() => {
+    const vals = sorted
+      .filter((m) => m.outputPricePerMTok !== null)
+      .map((m) => m.outputPricePerMTok as number);
+    return vals.length > 0 ? Math.max(...vals) : 0;
+  }, [sorted]);
+
   function handleSort(key: SortKey) {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -171,8 +185,28 @@ export default function PricingTable() {
                       <span className="pt-model-id">{m.modelId}</span>
                     </span>
                   </td>
-                  <td data-label="Input 價格">{formatPrice(m.inputPricePerMTok)}</td>
-                  <td data-label="Output 價格">{formatPrice(m.outputPricePerMTok)}</td>
+                  <td
+                    data-label="Input 價格"
+                    className="pt-price-cell pt-price-input"
+                    style={
+                      m.inputPricePerMTok !== null && maxInputPrice > 0
+                        ? ({ "--bar-pct": `${((m.inputPricePerMTok / maxInputPrice) * 100).toFixed(1)}%` } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    {formatPrice(m.inputPricePerMTok)}
+                  </td>
+                  <td
+                    data-label="Output 價格"
+                    className="pt-price-cell pt-price-output"
+                    style={
+                      m.outputPricePerMTok !== null && maxOutputPrice > 0
+                        ? ({ "--bar-pct": `${((m.outputPricePerMTok / maxOutputPrice) * 100).toFixed(1)}%` } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    {formatPrice(m.outputPricePerMTok)}
+                  </td>
                   <td data-label="Context Window">{formatContext(m.contextWindow)}</td>
                   <td data-label="更新時間">{formatDate(m.updatedAt)}</td>
                 </tr>
