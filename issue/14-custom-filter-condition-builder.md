@@ -60,3 +60,10 @@
 - 號碼：本地暫定 #11，GitHub 卡到 **#14**，已對齊。
 - 設計提醒：把「條件的資料結構」獨立成可序列化型別，#15 直接拿去存。
 - 相依：長在 #4；是 #15 前置；與 #12／#13 同檔建議依序。大小「中」，可交給 Agent Issue Review。
+
+### 2026-06-19 16:18 ｜ Agent Issue Review
+- 輸出：Review Suggestion：無需修改。
+- 理由：Issue 目標清楚，聚焦在「條件建構器 UI + 即時套用」同一件事；布林模型限定為一層 OR-of-AND，邊界明確，沒有落入任意巢狀條件或 #15 的命名／儲存範圍。欄位、運算子、null 數值處理、與既有 provider／搜尋／排序的疊加規則都有寫清楚，驗收條件可以逐項判斷。
+- 大小判斷：中，仍可接受。主要會落在 `PricingTable.tsx`／`PricingTable.css` 加上可序列化條件型別與 matching 純函式，雖然比 #12／#13 大，但仍是同一個目標、未跨後端或資料層。
+- 實作提醒：`between` 已列入範圍與驗收條件，Implement Agent 不應在未退回 Planning Agent 的情況下自行省略；若實作時發現行數或 UI 複雜度逼近「大」，應回到 Planning Agent 拆分或重新收斂驗收條件。
+- 下一步：交給 Implement Agent。
