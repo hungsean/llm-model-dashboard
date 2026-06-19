@@ -46,3 +46,10 @@
 - 緣由：用表內長條取代 #5 的另開比較視圖，更輕量。
 - 號碼：本地暫定 #10，GitHub 卡到 **#13**，已對齊。
 - 相依：長在 #4；與 #12／#14 同檔，建議依序做。大小「小（偏中）」，可交給 Agent Issue Review。
+
+### 2026-06-19 15:05 ｜ Agent Issue Review
+- 輸出：Review Suggestion：無需修改。
+- 理由：Issue 目標清楚，限定在 input／output 價格 cell 的背景比例長條；範圍邊界明確，排除圖表庫、context window、tooltip、排序／篩選邏輯改動與最佳值高亮；驗收條件可判斷，涵蓋當前可見資料正規化、null 價格、桌面／390px 手機寬度與 package 相依檢查。
+- 大小判斷：小（偏中）合理，主要落在 `PricingTable.tsx` 與 `PricingTable.css`，屬同一目標且未跨多模組。
+- 實作提醒：現有資料契約中 `0` 是有效價格、`null` 才是未知；Implement Agent 計算最大值時需避免可見列最大值為 `0` 時產生 `NaN`／無效 CSS，這是局部防呆，不影響本 Issue 通過。
+- 下一步：交給 Implement Agent。
