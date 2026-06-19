@@ -63,3 +63,13 @@
   - 兩欄各有背景長條 ✓；依可見列最大值正規化，filter/search 觸發 useMemo 重算 ✓；formatPrice 精度不變 ✓；null → style undefined → CSS fallback 0% → 無長條 ✓；手機卡片式 layout 截圖確認不破版 ✓；僅改 .tsx/.css 兩檔，package.json 無變動 ✓。
 - 風險取捨：maxInputPrice = 0（全部 null 或全部 0 價格）時不畫長條，此邊界情況已在 `maxInputPrice > 0` 條件中處理，符合 Issue Review 的實作提醒。
 - 下一步：交給 Agent Code Review。
+
+### 2026-06-19 15:29 ｜ Agent Code Review
+- 輸出：Review Report：無需修改。
+- 看過的改動點：
+  - `PricingTable.tsx`：`maxInputPrice`／`maxOutputPrice` 從當前 `sorted` 可見列排除 null 後計算，provider 篩選與搜尋變動會跟著重算；price cell 用 `--bar-pct` 傳比例，且 `max > 0` 防呆可避免全部 0／null 時產生無效 CSS。符合 Issue。
+  - `PricingTable.css`：input／output 兩欄以不同低透明度背景漸層畫長條，未引入圖表套件；桌面 table cell 與手機 flex card layout 都是背景層，不會改變既有欄位內容或排序／篩選行為。符合 Issue。
+  - `issue/closed/12-show-modelid-and-updatedat.md`：分支上另有 #12 issue 檔案移到 `closed` 的人為整理 commit，非 #13 實作內容；不影響本次功能審查，但 PR 範圍會包含此 metadata 變更。
+- 驗證：`git diff --check origin/main...HEAD` 通過；`pnpm lint` 通過；`pnpm typecheck` 通過；`pnpm build` exit code 0，build 過程有 Wrangler 嘗試寫 sandbox 外 log file 的 EPERM 訊息，但產物建置完成且工作樹未留下變更。
+- 風險：沒有需要擋下的功能、安全、資料或相容性風險。
+- 結論：無需修改，交給人確認；抵達 PR 推送時，請人手動把 Issue #13 移到 `/closed` 收尾。
