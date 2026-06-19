@@ -106,6 +106,26 @@
   text-align: right;
 }
 
+.pt-price-cell {
+  position: relative;
+}
+
+.pt-price-input {
+  background: linear-gradient(
+    to right,
+    rgba(99, 102, 241, 0.18) var(--bar-pct, 0%),
+    transparent var(--bar-pct, 0%)
+  );
+}
+
+.pt-price-output {
+  background: linear-gradient(
+    to right,
+    rgba(16, 185, 129, 0.18) var(--bar-pct, 0%),
+    transparent var(--bar-pct, 0%)
+  );
+}
+
 /* RWD: 手機 (<600px) 改用卡片式 */
 @media (max-width: 600px) {
   .pt-table {
