@@ -60,3 +60,18 @@
   - ✅ 未動排序邏輯、provider 篩選、搜尋。
 - **驗證**：dev server 啟動後，Playwright 截圖桌面（1280px）與手機（390px×844px）各一張，視覺確認。
 - **風險取捨**：無。純前端顯示，不動資料層。下一步：交給 Agent Code Review。
+
+### 2026-06-19 11:48 ｜ Agent Code Review
+- 輸出：Review Report：結論「無需修改」。
+- 看過的改動點：
+  - `PricingTable.tsx`：新增「更新時間」欄、每列用 `formatDate(m.updatedAt)` 顯示來源更新時間，`updatedAt` 為 `null` 時沿用既有 `formatDate` 回傳「—」；空狀態 `colSpan` 已同步改為 6。符合 Issue。
+  - `PricingTable.tsx`：「模型」cell 改為 `displayName` 上方、`modelId` 下方，未改 provider 篩選、關鍵字搜尋或既有排序邏輯。符合 Issue。
+  - `PricingTable.css`：新增 `.pt-model-cell` 垂直排列與 `.pt-model-id` 灰色小字，手機版仍沿用既有 `data-label` 卡片 layout。符合 Issue。
+- 驗證：
+  - `pnpm lint` 通過。
+  - `pnpm typecheck` 通過。
+  - `pnpm build` exit code 0；sandbox 內 Wrangler 嘗試寫使用者目錄 log 時印出 `EPERM`，但 build 完成並產出檔案，未視為 #12 實作問題。
+- 風險：
+  - 沒有需要擋下的程式風險。
+  - 注意：目前分支 `HEAD` 另包含 #16 planning commit 與 `.workflow-rules` subproject 指標變更；本次 #12 review 以實作 commit `455665b` 的 `PricingTable.tsx` / `PricingTable.css` 變更為準。若要送只含 #12 的 PR，建議送出前確認 PR 範圍。
+- 下一步：產出 Review Report，交給人確認；若準備 PR 推送，請確認是否要把非 #12 變更排除。
