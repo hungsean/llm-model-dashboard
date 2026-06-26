@@ -129,3 +129,22 @@
 - 建議：
   - 從 #14 branch 移除或拆出 `.workflow-rules` submodule pointer update，讓本張只保留 filter builder、matcher、PricingTable 接線與 Issue 留言板紀錄。
 - 下一步：回到 Implement Agent。
+
+### 2026-06-26 10:33 ｜ Agent Code Review
+- 輸出：Review Report：無需修改。
+- 修正前一筆結論：人已確認 `.workflow-rules` submodule pointer update 是刻意保留，雖然不屬於 filter builder 主功能，但不影響 #14 功能行為，也不要求 Implement Agent 回頭修改。
+- 看過的改動點：
+  - `src/components/filterTypes.ts`：條件型別、欄位與運算子清單符合 Issue，結構可序列化，能作為 #15 的前置資料結構。
+  - `src/components/filterMatcher.ts`：OR-of-AND 邏輯符合 Issue；修正後空白 OR 群組不再放行全部資料；數值欄位為 `null` 時不符合已完成的數值條件。
+  - `src/components/FilterBuilder.tsx`／`src/components/FilterBuilder.css`：有新增／刪除條件、新增／刪除群組、清空、`between` 雙值輸入與手機斷點樣式，未加入 #15 的命名或儲存。
+  - `src/components/PricingTable.tsx`：條件建構器、provider 下拉、關鍵字搜尋與排序的套用順序符合 Issue，彼此為 AND 疊加。
+  - `.workflow-rules`：人確認為刻意保留的附帶變更，列為已知非阻擋事項。
+- 驗證：
+  - `git diff --check origin/main...HEAD` 通過。
+  - `pnpm lint` 通過。
+  - `pnpm typecheck` 通過。
+  - `pnpm build` exit code 0；過程仍印出 Wrangler log 寫入 sandbox 外路徑的 `EPERM` 訊息，但 Vite build 完成。
+  - `git merge-tree origin/main HEAD` 通過，未看到 merge conflict。
+- 風險：
+  - `.workflow-rules` 是非 #14 主功能的附帶變更，但已由人確認接受；沒有需要擋下的功能風險。
+- 下一步：產出 Review Report，交給人確認；若人確認可收尾，提醒把這張 Issue 移到 `/closed`。
