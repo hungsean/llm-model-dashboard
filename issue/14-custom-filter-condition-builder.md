@@ -108,3 +108,24 @@
 - 問題修正：`filterMatcher.ts` 新增 `isCompleted(condition)` 函式，只有 value 非空且合法（between 時 value2 也要非空）才算已完成條件。`matchesFilter` 改為只把「至少一個已完成條件的群組」視為有效 OR 分支，完全空白的 OR 群組直接忽略。
 - 驗證（Playwright）：provider=anthropic 篩到 25 筆 → 新增空白 OR 群組 → 仍 25 筆（bug 已修）→ 填入 openai → 75 筆 → 加 AND modelId contains mini → 34 筆，全部符合任一群組。
 - 下一步：交給 Agent Code Review。
+
+### 2026-06-26 10:28 ｜ Agent Code Review
+- 輸出：Review Report：需要修改。
+- 看過的改動點：
+  - `src/components/filterTypes.ts`：條件型別、欄位與運算子清單符合 Issue，結構可序列化，能作為 #15 的前置資料結構。
+  - `src/components/filterMatcher.ts`：OR-of-AND 邏輯符合 Issue；修正後空白 OR 群組不再放行全部資料；數值欄位為 `null` 時不符合已完成的數值條件。
+  - `src/components/FilterBuilder.tsx`／`src/components/FilterBuilder.css`：有新增／刪除條件、新增／刪除群組、清空、`between` 雙值輸入與手機斷點樣式，未加入 #15 的命名或儲存。
+  - `src/components/PricingTable.tsx`：條件建構器、provider 下拉、關鍵字搜尋與排序的套用順序符合 Issue，彼此為 AND 疊加。
+- 問題：
+  - `.workflow-rules`：branch 另外包含 commit `9063beb upgrade workflow-rules`，把 submodule 從 `10e8d43` 推到 `38edd22`。這不是 Issue #14 的 filter builder 範圍，也不是 Implement Agent 說明的改動點。
+- 原因：
+  - Issue #14 只要求前端條件建構器與表格即時過濾；混入工作流規則更新會讓這張 feature PR 帶進無關流程設定變更，增加 review 與合併風險。
+- 驗證：
+  - `git diff --check origin/main...HEAD` 通過。
+  - `pnpm lint` 通過。
+  - `pnpm typecheck` 通過。
+  - `pnpm build` exit code 0；過程仍印出 Wrangler log 寫入 sandbox 外路徑的 `EPERM` 訊息，但 Vite build 完成。
+  - `git merge-tree origin/main HEAD` 通過，未看到 merge conflict。
+- 建議：
+  - 從 #14 branch 移除或拆出 `.workflow-rules` submodule pointer update，讓本張只保留 filter builder、matcher、PricingTable 接線與 Issue 留言板紀錄。
+- 下一步：回到 Implement Agent。
